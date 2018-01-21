@@ -4,19 +4,19 @@ export default class datePicker {
 
     }
 
-    beforeMount() {
+    beforeMount(): void {
 
     }
 
-    afterMount() {
+    afterMount(): void {
 
     }
 
-    onSelect() {
-        
+    onSelect(): void {
+
     }
 
-    render() {
+    render(): void {
 
     }
 }
