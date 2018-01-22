@@ -1,5 +1,8 @@
 
 export default class datePicker {
+
+    private data: number = 0;
+
     constructor() {
 
     }
