@@ -1,0 +1,7 @@
+{
+    "files": ["datePicker.ts"],
+    "compilerOptions": {
+        "outDir": "./../build",
+        "removeComments": true
+    }
+}
