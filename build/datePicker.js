@@ -31,6 +31,8 @@ var DatePicker = (function (window) {
             this.year = this.curYear;
             this.month = this.curMonth;
             this.date = this.curDate;
+            this.tempMonth = this.curMonth;
+            this.tempYear = this.curYear;
             this.$conf = {
                 themeColor: 'rgba(42, 176, 202, 1)',
                 type: 'portrait',
@@ -43,10 +45,11 @@ var DatePicker = (function (window) {
             }
             this.init();
         }
-        DatePicker.prototype.setDate = function (year, month, date) {
-            this.monthYearBody.innerHTML = this.createMonthYearItem(month, year);
-            this.yearCon.innerHTML = year.toString();
-            this.monthDateCon['innerHTML'] = month + "\u6708" + date + "\u65E5";
+        DatePicker.prototype.setDate = function () {
+            this.year = this.tempYear;
+            this.month = this.tempMonth;
+            this.yearCon.innerHTML = this.year.toString();
+            this.monthDateCon['innerHTML'] = this.month + "\u6708" + this.date + "\u65E5";
         };
         DatePicker.prototype.setTheme = function (color, type) {
             this.type = type || this.$conf['type'];
@@ -82,6 +85,12 @@ var DatePicker = (function (window) {
                 [parseInt(date.split('-')[0]), parseInt(date.split('-')[1]), parseInt(date.split('-')[2])] :
                 [this.curYear, this.curMonth, this.curDate];
         };
+        DatePicker.prototype.getMethod = function (ele, eventName) {
+            var _this = this;
+            return function (date) {
+                _this.$methods[ele.getAttribute(eventName)] && _this.$methods[ele.getAttribute(eventName)](date);
+            };
+        };
         DatePicker.prototype.createMonthYearItem = function (month, year) {
             var template = "<div data-ele=\"month-year-item-" + year + "-" + month + "\">" + month + "\u6708\uFF0C" + year + "</div>";
             return template;
@@ -107,7 +116,7 @@ var DatePicker = (function (window) {
             return template;
         };
         DatePicker.prototype.createContainer = function () {
-            var div = document.createElement('div'), template = "\n                <div data-ele=\"wrapper\" style=\"box-sizing: border-box; position: absolute; top: 0;left: 0;width: 100%; height: 100vh; display: none;\">\n                    <div style=\"display: flex;justify-content: center;align-items: center;width: 100%;height: 100%;background-color: rgba(0, 0, 0, 0.5);\">\n                        <div data-ele=\"date-picker-container\" style=\"display: flex;box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);\">\n                            \n                            <div data-ele=\"date-info-container\" style=\"padding: 20px;color: #fff;box-sizing: border-box;align-items: stretch;\">\n                                <div data-ele=\"year\" style=\"margin-bottom: 14px;color: rgba(255, 255, 255, 0.7);cursor: pointer;\"></div>\n                                <div data-ele=\"month-date\" style=\"color: #fff;font-size: 32px;\"></div>\n                            </div>\n                \n                            <div data-ele=\"date-calendar-container\" style=\"display: flex;flex-direction: column;justify-content: space-between;padding: 0 8px 0 8px;box-sizing: border-box;background-color: #fff;align-items: stretch;\">\n                                <div style=\"display: flex;justify-content: space-around;align-items: center;font-size: 14px;font-weight: 900;height: 48px;color: rgba(0, 0, 0, 0.7);\">\n                                    \n                                    <button data-ele=\"btn-pm\" style=\"outline: none;border: none;cursor: pointer;\">\n                                        <svg viewBox=\"0 0 24 24\" style=\"display: inline-block; color: rgba(0, 0, 0, 0.87); fill: currentcolor; height: 24px; width: 24px; user-select: none; transition: all 450ms cubic-bezier(0.23, 1, 0.32, 1) 0ms;\">\n                                            <path d=\"M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z\"></path>\n                                        </svg>\n                                    </button>\n\n                                    <div data-ele=\"month-year-body\" style=\"overflow: hidden;\"></div>\n\n                                    <button data-ele=\"btn-nm\" style=\"outline: none;border: none;cursor: pointer;\">\n                                        <svg viewBox=\"0 0 24 24\" style=\"display: inline-block; color: rgba(0, 0, 0, 0.87); fill: currentcolor; height: 24px; width: 24px; user-select: none; transition: all 450ms cubic-bezier(0.23, 1, 0.32, 1) 0ms;\">\n                                            <path d=\"M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z\"></path>\n                                        </svg>\n                                    </button>\n\n                                </div>\n                \n                                <div style=\"height: 234px;\">\n                                    <div style=\"display: flex;justify-content: space-around;height: 20px;font-size: 12px;color: rgba(0, 0, 0, 0.5);\">\n                                        <span>\u65E5</span>\n                                        <span>\u4E00</span>\n                                        <span>\u4E8C</span>\n                                        <span>\u4E09</span>\n                                        <span>\u56DB</span>\n                                        <span>\u4E94</span>\n                                        <span>\u516D</span>\n                                    </div>\n                \n                                    <div data-ele=\"calendar-body\" style=\"overflow: hidden;\"></div>\n                                </div>\n                \n                                <div style=\"display: flex;justify-content: space-between;align-items: center;height: 48px;\">\n                                    <button data-ele=\"btn-today\" style=\"width: 64px;height: 36px;outline: none;border: none;font-size: 14px;cursor: pointer;\">\u4ECA\u5929</button>\n                                    <div style=\"display: flex; width: 40%; justify-content: space-between; align-items: center;\">\n                                        <button data-ele=\"btn-close\" style=\"width: 64px;height: 36px;outline: none;border: none;font-size: 14px;cursor: pointer;\">\u5173\u95ED</button>\n                                        <button data-ele=\"btn-comfirm\" style=\"width: 64px;height: 36px;outline: none;border: none;font-size: 14px;cursor: pointer;\">\u786E\u5B9A</button>\n                                    </div>\n                                </div>\n                            </div>\n\n                        </div>\n                    </div>\n                </div>\n                ";
+            var div = document.createElement('div'), template = "\n                <div data-ele=\"wrapper\" style=\"box-sizing: border-box; position: absolute; top: 0;left: 0;width: 100%; height: 100vh; display: none;\">\n                    <div style=\"display: flex;justify-content: center;align-items: center;width: 100%;height: 100%;background-color: rgba(0, 0, 0, 0.5);\">\n                        <div data-ele=\"date-picker-container\" style=\"display: flex;box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);\">\n                            \n                            <div data-ele=\"date-info-container\" style=\"padding: 20px;color: #fff;box-sizing: border-box;align-items: stretch;\">\n                                <div data-ele=\"year\" style=\"margin-bottom: 14px;color: rgba(255, 255, 255, 0.7);cursor: pointer;\"></div>\n                                <div data-ele=\"month-date\" style=\"color: #fff;font-size: 32px;\"></div>\n                            </div>\n                \n                            <div data-ele=\"date-calendar-container\" style=\"display: flex;flex-direction: column;justify-content: space-between;padding: 0 8px 0 8px;box-sizing: border-box;background-color: #fff;align-items: stretch;\">\n                                <div style=\"display: flex;justify-content: space-around;align-items: center;font-size: 14px;font-weight: 900;height: 48px;color: rgba(0, 0, 0, 0.7);\">\n                                    \n                                    <button data-ele=\"btn-pm\" style=\"outline: none;border: none;cursor: pointer; background-color: transparent;\">\n                                        <svg viewBox=\"0 0 24 24\" style=\"display: inline-block; color: rgba(0, 0, 0, 0.87); fill: currentcolor; height: 24px; width: 24px; user-select: none; transition: all 450ms cubic-bezier(0.23, 1, 0.32, 1) 0ms;\">\n                                            <path d=\"M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z\"></path>\n                                        </svg>\n                                    </button>\n\n                                    <div data-ele=\"month-year-body\" style=\"overflow: hidden;\"></div>\n\n                                    <button data-ele=\"btn-nm\" style=\"outline: none;border: none;cursor: pointer;background-color: transparent;\">\n                                        <svg viewBox=\"0 0 24 24\" style=\"display: inline-block; color: rgba(0, 0, 0, 0.87); fill: currentcolor; height: 24px; width: 24px; user-select: none; transition: all 450ms cubic-bezier(0.23, 1, 0.32, 1) 0ms;\">\n                                            <path d=\"M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z\"></path>\n                                        </svg>\n                                    </button>\n\n                                </div>\n                \n                                <div style=\"height: 256px;\">\n                                    <div style=\"display: flex;justify-content: space-around;height: 20px;font-size: 12px;color: rgba(0, 0, 0, 0.5);\">\n                                        <span>\u65E5</span>\n                                        <span>\u4E00</span>\n                                        <span>\u4E8C</span>\n                                        <span>\u4E09</span>\n                                        <span>\u56DB</span>\n                                        <span>\u4E94</span>\n                                        <span>\u516D</span>\n                                    </div>\n                \n                                    <div data-ele=\"calendar-body\" style=\"overflow: hidden;\"></div>\n                                </div>\n                \n                                <div style=\"display: flex;justify-content: space-between;align-items: center;height: 48px;\">\n                                    <button data-ele=\"btn-today\" style=\"background-color: transparent;width: 64px;height: 36px;outline: none;border: none;font-size: 14px;cursor: pointer;\">\u4ECA\u5929</button>\n                                    <div style=\"display: flex; width: 40%; justify-content: space-between; align-items: center;\">\n                                        <button data-ele=\"btn-close\" style=\"background-color: transparent;width: 64px;height: 36px;outline: none;border: none;font-size: 14px;cursor: pointer;\">\u5173\u95ED</button>\n                                        <button data-ele=\"btn-comfirm\" style=\"background-color: transparent;width: 64px;height: 36px;outline: none;border: none;font-size: 14px;cursor: pointer;\">\u786E\u5B9A</button>\n                                    </div>\n                                </div>\n                            </div>\n\n                        </div>\n                    </div>\n                </div>\n                ";
             div.innerHTML = template;
             return div.children[0];
         };
@@ -117,6 +126,7 @@ var DatePicker = (function (window) {
                 e.stopPropagation();
                 if (_this.isUnselectDateEle(e.target)) {
                     _this.toggleFocus(e.target);
+                    _this.setDate();
                 }
             });
         };
@@ -148,7 +158,42 @@ var DatePicker = (function (window) {
             this.setStyle(this.curSelectDateEle, ['backgroundColor', 'opacity', 'color'], [this.themeColor, 1, '#fff']);
             this.lastSelectDateEle = this.curSelectDateEle;
             this.date = parseInt(ele['innerHTML']);
-            this.setDate(this.year, this.month, this.date);
+        };
+        DatePicker.prototype.renderPanel = function (year, month) {
+            if (this.curInputData) {
+                this.year = this.curInputData.year = this.parseDate(this.curInputData.selectedDate)[0];
+                this.month = this.curInputData.month = this.parseDate(this.curInputData.selectedDate)[1];
+                this.date = this.curInputData.date = this.parseDate(this.curInputData.selectedDate)[2];
+                this.tempMonth = this.month;
+                this.tempYear = this.year;
+            }
+            this.monthYearBody.innerHTML = this.createMonthYearItem(month, year);
+            this.calendarBody.innerHTML = this.createCalendarItem(month, year);
+        };
+        DatePicker.prototype.slideMonths = function (dir) {
+            if (dir) {
+                if (this.tempMonth < 12) {
+                    this.tempMonth++;
+                }
+                else {
+                    this.tempMonth = 1;
+                    this.tempYear++;
+                }
+            }
+            else {
+                if (this.tempMonth > 1) {
+                    this.tempMonth--;
+                }
+                else {
+                    this.tempMonth = 12;
+                    this.tempYear--;
+                }
+            }
+            this.monthYearBody.innerHTML = this.createMonthYearItem(this.tempMonth, this.tempYear);
+            this.calendarBody.innerHTML = this.createCalendarItem(this.tempMonth, this.tempYear);
+            if (this.tempMonth === this.month && this.tempYear === this.year) {
+                this.toggleFocus(this.getElement('span', "date-item-" + this.date));
+            }
         };
         DatePicker.prototype.addInputData = function (inputEle) {
             var ymd = this.parseDate(inputEle['value']);
@@ -162,9 +207,9 @@ var DatePicker = (function (window) {
                 selectedDate: inputEle['value'],
                 themeColor: inputEle.getAttribute('data-color') || this.themeColor,
                 type: inputEle.getAttribute('data-type') || this.type,
-                onSelect: this.$methods[inputEle.getAttribute('onSelect')],
-                onShow: this.$methods[inputEle.getAttribute('onShow')],
-                onClose: this.$methods[inputEle.getAttribute('onClose')]
+                onSelect: this.getMethod(inputEle, 'onSelect'),
+                onShow: this.getMethod(inputEle, 'onShow'),
+                onClose: this.getMethod(inputEle, 'onClose')
             });
             this.inputEleindex++;
         };
@@ -183,8 +228,7 @@ var DatePicker = (function (window) {
             this.todayBtn = this.getElement('button', 'btn-today');
             this.pmBtn = this.getElement('button', 'btn-pm');
             this.nmBtn = this.getElement('button', 'btn-nm');
-            this.monthYearBody.innerHTML = this.createMonthYearItem(this.curMonth, this.curYear);
-            this.calendarBody.innerHTML = this.createCalendarItem(this.curMonth, this.curYear);
+            this.renderPanel(this.curYear, this.curMonth);
             this.todayEle = document.querySelector("span[data-ele=\"date-item-" + this.curDate + "\"]");
             this.todayEle.setAttribute('data-today', true);
             this.inputList.map(function (ele) {
@@ -199,26 +243,33 @@ var DatePicker = (function (window) {
             this.closeBtn.addEventListener('click', function (e) {
                 _this.close();
             });
+            this.comfirmBtn.addEventListener('click', function (e) {
+                _this.comfirm();
+                _this.close();
+            });
+            this.nmBtn.addEventListener('click', function (e) {
+                _this.slideMonths(1);
+            });
+            this.pmBtn.addEventListener('click', function (e) {
+                _this.slideMonths(0);
+            });
             this.hover();
             this.select();
         };
         DatePicker.prototype.comfirm = function () {
             this.curInputData.inputEle['value'] = this.curInputData.selectedDate = this.year + "-" + this.month + "-" + this.date;
-            this.curInputData.onSelect && this.curInputData.onSelect(this.curInputData.selectedDate);
+            this.curInputData.onSelect(this.curInputData.selectedDate);
         };
         DatePicker.prototype.close = function () {
             this.setStyle(this.wrapper, ['display'], ['none']);
-            this.curInputData.onClose && this.curInputData.onClose();
+            this.curInputData.onClose();
         };
         DatePicker.prototype.show = function (color, type) {
             this.setTheme(color, type);
-            if (this.curInputData) {
-                this.year = this.curInputData.year = this.parseDate(this.curInputData.selectedDate)[0];
-                this.month = this.curInputData.month = this.parseDate(this.curInputData.selectedDate)[1];
-                this.date = this.curInputData.date = this.parseDate(this.curInputData.selectedDate)[2];
-                this.toggleFocus(this.getElement('span', "date-item-" + this.date));
-            }
-            this.curInputData.onShow && this.curInputData.onShow();
+            this.renderPanel(this.year, this.month);
+            this.toggleFocus(this.getElement('span', "date-item-" + this.date));
+            this.setDate();
+            this.curInputData.onShow();
         };
         DatePicker.prototype.methods = function (name, fn) {
             this.$methods[name] = fn;

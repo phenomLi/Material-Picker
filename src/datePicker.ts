@@ -19,9 +19,9 @@ interface inputData {
     themeColor: string;
     type: string;
     //事件函数
-    onSelect(date: string): (date: string) => void;
-    onShow(): () => void;
-    onClose(): () => void;
+    onSelect(date: string);
+    onShow();
+    onClose();
 }
 
 
@@ -65,6 +65,10 @@ return class DatePicker {
     private year: number;
     private month: number;
     private date: number;
+
+    //用作保存当前滚动到的月份/年份
+    private tempYear: number;
+    private tempMonth: number;
 
     //保存Date对象的实例
     private $dateInstance: Date = null;
@@ -110,6 +114,9 @@ return class DatePicker {
         this.month = this.curMonth;
         this.date = this.curDate;
 
+        this.tempMonth = this.curMonth;
+        this.tempYear = this.curYear;
+
         //默认配置
         this.$conf = {
             themeColor: 'rgba(42, 176, 202, 1)',
@@ -141,10 +148,14 @@ return class DatePicker {
      * @param month <number> 月份
      * @param date <number> 日
      */
-    private setDate(year: number, month: number, date: number): void {
-        this.monthYearBody.innerHTML = this.createMonthYearItem(month, year);
-        this.yearCon.innerHTML = year.toString();
-        this.monthDateCon['innerHTML'] = `${month}月${date}日`;
+    private setDate(): void {
+        // this.monthYearBody.innerHTML = this.createMonthYearItem(month, year);
+
+        this.year = this.tempYear;
+        this.month = this.tempMonth;
+
+        this.yearCon.innerHTML = this.year.toString();
+        this.monthDateCon['innerHTML'] = `${this.month}月${this.date}日`;
     }
 
     /**
@@ -218,6 +229,17 @@ return class DatePicker {
         return date?  
             [parseInt(date.split('-')[0]), parseInt(date.split('-')[1]), parseInt(date.split('-')[2])]:
             [this.curYear, this.curMonth, this.curDate];
+    }
+
+    /**
+     * 获取事件方法
+     * @param ele <Element> 响应事件的元素
+     * @param eventName <string> 事件名
+     */
+    private getMethod(ele: Element, eventName: string) {
+        return (date?: string) => {
+            this.$methods[ele.getAttribute(eventName)] && this.$methods[ele.getAttribute(eventName)](date);
+        }
     }
 
     //-------------------工具函数END--------------------------------
@@ -295,7 +317,7 @@ return class DatePicker {
                             <div data-ele="date-calendar-container" style="display: flex;flex-direction: column;justify-content: space-between;padding: 0 8px 0 8px;box-sizing: border-box;background-color: #fff;align-items: stretch;">
                                 <div style="display: flex;justify-content: space-around;align-items: center;font-size: 14px;font-weight: 900;height: 48px;color: rgba(0, 0, 0, 0.7);">
                                     
-                                    <button data-ele="btn-pm" style="outline: none;border: none;cursor: pointer;">
+                                    <button data-ele="btn-pm" style="outline: none;border: none;cursor: pointer; background-color: transparent;">
                                         <svg viewBox="0 0 24 24" style="display: inline-block; color: rgba(0, 0, 0, 0.87); fill: currentcolor; height: 24px; width: 24px; user-select: none; transition: all 450ms cubic-bezier(0.23, 1, 0.32, 1) 0ms;">
                                             <path d="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z"></path>
                                         </svg>
@@ -303,7 +325,7 @@ return class DatePicker {
 
                                     <div data-ele="month-year-body" style="overflow: hidden;"></div>
 
-                                    <button data-ele="btn-nm" style="outline: none;border: none;cursor: pointer;">
+                                    <button data-ele="btn-nm" style="outline: none;border: none;cursor: pointer;background-color: transparent;">
                                         <svg viewBox="0 0 24 24" style="display: inline-block; color: rgba(0, 0, 0, 0.87); fill: currentcolor; height: 24px; width: 24px; user-select: none; transition: all 450ms cubic-bezier(0.23, 1, 0.32, 1) 0ms;">
                                             <path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"></path>
                                         </svg>
@@ -311,7 +333,7 @@ return class DatePicker {
 
                                 </div>
                 
-                                <div style="height: 234px;">
+                                <div style="height: 256px;">
                                     <div style="display: flex;justify-content: space-around;height: 20px;font-size: 12px;color: rgba(0, 0, 0, 0.5);">
                                         <span>日</span>
                                         <span>一</span>
@@ -326,10 +348,10 @@ return class DatePicker {
                                 </div>
                 
                                 <div style="display: flex;justify-content: space-between;align-items: center;height: 48px;">
-                                    <button data-ele="btn-today" style="width: 64px;height: 36px;outline: none;border: none;font-size: 14px;cursor: pointer;">今天</button>
+                                    <button data-ele="btn-today" style="background-color: transparent;width: 64px;height: 36px;outline: none;border: none;font-size: 14px;cursor: pointer;">今天</button>
                                     <div style="display: flex; width: 40%; justify-content: space-between; align-items: center;">
-                                        <button data-ele="btn-close" style="width: 64px;height: 36px;outline: none;border: none;font-size: 14px;cursor: pointer;">关闭</button>
-                                        <button data-ele="btn-comfirm" style="width: 64px;height: 36px;outline: none;border: none;font-size: 14px;cursor: pointer;">确定</button>
+                                        <button data-ele="btn-close" style="background-color: transparent;width: 64px;height: 36px;outline: none;border: none;font-size: 14px;cursor: pointer;">关闭</button>
+                                        <button data-ele="btn-comfirm" style="background-color: transparent;width: 64px;height: 36px;outline: none;border: none;font-size: 14px;cursor: pointer;">确定</button>
                                     </div>
                                 </div>
                             </div>
@@ -362,6 +384,7 @@ return class DatePicker {
 
             if(this.isUnselectDateEle(e.target)) {
                 this.toggleFocus(e.target);
+                this.setDate();
             }
         });
     }
@@ -402,7 +425,7 @@ return class DatePicker {
     }
 
     /**
-     * 选中某个日期格子
+     * 高亮某个日期格子
      * @param ele <Element | EventTarget> 日期格子函数 
      */
     private toggleFocus(ele): void {
@@ -423,10 +446,63 @@ return class DatePicker {
         this.lastSelectDateEle = this.curSelectDateEle;
 
         this.date = parseInt(ele['innerHTML']);
-
-        this.setDate(this.year, this.month, this.date);
     }
     
+    /**
+     * 渲染组件部分内容
+     * @param year <number>
+     * @param month <number>
+     */
+    private renderPanel(year: number, month: number): void {
+        if(this.curInputData) {
+            this.year = this.curInputData.year = this.parseDate(this.curInputData.selectedDate)[0];
+            this.month = this.curInputData.month = this.parseDate(this.curInputData.selectedDate)[1];
+            this.date = this.curInputData.date = this.parseDate(this.curInputData.selectedDate)[2];
+
+            this.tempMonth = this.month;
+            this.tempYear = this.year;
+        }
+
+        this.monthYearBody.innerHTML = this.createMonthYearItem(month, year);
+        this.calendarBody.innerHTML = this.createCalendarItem(month, year);
+    }
+
+    /**
+     * 滑动切换当前月
+     * @param <number> dir: 0左方向，1右方向
+     */
+    private slideMonths(dir: number) {
+        
+        //向右
+        if(dir) {
+            if(this.tempMonth < 12) {
+                this.tempMonth++;
+            }
+            else {
+                this.tempMonth = 1;
+                this.tempYear++;
+            } 
+        }
+        //向左
+        else {
+            if(this.tempMonth > 1) {
+                this.tempMonth--;
+            }
+            else {
+                this.tempMonth = 12;
+                this.tempYear--;
+            }
+        }
+
+        this.monthYearBody.innerHTML = this.createMonthYearItem(this.tempMonth, this.tempYear);
+        this.calendarBody.innerHTML = this.createCalendarItem(this.tempMonth, this.tempYear);
+
+        if(this.tempMonth === this.month && this.tempYear === this.year) {
+            this.toggleFocus(this.getElement('span', `date-item-${this.date}`));
+        }
+    }
+
+
 
     /**
      * 生命周期函数-----------------------------------------------------
@@ -454,9 +530,9 @@ return class DatePicker {
             themeColor: inputEle.getAttribute('data-color') || this.themeColor,
             type: inputEle.getAttribute('data-type') || this.type,
 
-            onSelect: this.$methods[inputEle.getAttribute('onSelect')],
-            onShow: this.$methods[inputEle.getAttribute('onShow')],
-            onClose: this.$methods[inputEle.getAttribute('onClose')]
+            onSelect: this.getMethod(inputEle, 'onSelect'),
+            onShow: this.getMethod(inputEle, 'onShow'),
+            onClose: this.getMethod(inputEle, 'onClose')
         });
 
         this.inputEleindex++;
@@ -488,8 +564,7 @@ return class DatePicker {
         this.pmBtn = this.getElement('button', 'btn-pm');
         this.nmBtn = this.getElement('button', 'btn-nm');
 
-        this.monthYearBody.innerHTML = this.createMonthYearItem(this.curMonth, this.curYear);
-        this.calendarBody.innerHTML = this.createCalendarItem(this.curMonth, this.curYear);
+        this.renderPanel(this.curYear, this.curMonth);
 
         this.todayEle = document.querySelector(`span[data-ele="date-item-${this.curDate}"]`);
         this.todayEle.setAttribute('data-today', true);
@@ -516,7 +591,22 @@ return class DatePicker {
             this.close();
         });
 
-        
+        //确认选择
+        this.comfirmBtn.addEventListener('click', e => {
+            this.comfirm();
+            this.close();
+        });
+
+        /**
+         * 为两个切换月份的按钮添加功能
+         */
+        this.nmBtn.addEventListener('click', e => {
+            this.slideMonths(1);
+        });
+
+        this.pmBtn.addEventListener('click', e => {
+            this.slideMonths(0);
+        });
 
 
         //悬浮日期
@@ -529,7 +619,7 @@ return class DatePicker {
 
     private comfirm(): void {
         this.curInputData.inputEle['value'] = this.curInputData.selectedDate = `${this.year}-${this.month}-${this.date}`;
-        this.curInputData.onSelect && this.curInputData.onSelect(this.curInputData.selectedDate);
+        this.curInputData.onSelect(this.curInputData.selectedDate);
     }
 
 
@@ -541,7 +631,7 @@ return class DatePicker {
      */
     public close(): void {
         this.setStyle(this.wrapper, ['display'], ['none']);
-        this.curInputData.onClose && this.curInputData.onClose();
+        this.curInputData.onClose();
     }
 
     /**
@@ -554,17 +644,17 @@ return class DatePicker {
         //设置外观
         this.setTheme(color, type);
 
-        if(this.curInputData) {
-            
-            this.year = this.curInputData.year = this.parseDate(this.curInputData.selectedDate)[0];
-            this.month = this.curInputData.month = this.parseDate(this.curInputData.selectedDate)[1];
-            this.date = this.curInputData.date = this.parseDate(this.curInputData.selectedDate)[2];
+        //渲染面板
+        this.renderPanel(this.year, this.month);
 
-            this.toggleFocus(this.getElement('span', `date-item-${this.date}`));
-        }
+        //高亮选中的日期
+        this.toggleFocus(this.getElement('span', `date-item-${this.date}`));
+
+        //设置组件的选择日期为input选择的
+        this.setDate();
         
-        //响应事件
-        this.curInputData.onShow && this.curInputData.onShow();
+        //响应事件onShow
+        this.curInputData.onShow();
     }
 
 
