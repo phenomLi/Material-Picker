@@ -1,16 +1,6 @@
-var __extends = (this && this.__extends) || (function () {
-    var extendStatics = Object.setPrototypeOf ||
-        ({ __proto__: [] } instanceof Array && function (d, b) { d.__proto__ = b; }) ||
-        function (d, b) { for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p]; };
-    return function (d, b) {
-        extendStatics(d, b);
-        function __() { this.constructor = d; }
-        d.prototype = b === null ? Object.create(b) : (__.prototype = b.prototype, new __());
-    };
-})();
 var timePicker = (function (window) {
-    var materialPicker = (function () {
-        function materialPicker(conf) {
+    var MaterialPicker = (function () {
+        function MaterialPicker(conf) {
             var _this = this;
             this.inputList = [];
             this.inputDataList = [];
@@ -24,6 +14,7 @@ var timePicker = (function (window) {
             this.$conf = {};
             this.$methods = {};
             this.$dateInstance = new Date();
+            console.log(materialPicker.prototype['constructor']);
             this.$conf = {
                 themeColor: '#4CAF50',
                 type: 'portrait',
@@ -45,17 +36,17 @@ var timePicker = (function (window) {
                 this.inputList.map(function (item) { return _this.addInputData(item); });
             }
         }
-        materialPicker.prototype.init = function () { };
-        materialPicker.prototype.close = function () {
+        MaterialPicker.prototype.init = function () { };
+        MaterialPicker.prototype.close = function () {
             this.setStyle(this.materialPickerContainer, ['transform', 'opacity'], ['translateY(-30%)', 0]);
             this.setStyle(this.wrapper, ['visibility', 'opacity'], ['hidden', 0]);
             this.curInputData.onClose();
         };
-        materialPicker.prototype.comfirm = function (value) {
+        MaterialPicker.prototype.comfirm = function (value) {
             this.curInputData.inputEle['value'] = this.curInputData.selectedValue = value;
             this.curInputData.onSelect(this.curInputData.selectedValue);
         };
-        materialPicker.prototype.setTheme = function (color, type) {
+        MaterialPicker.prototype.setTheme = function (color, type) {
             this.type = type || this.$conf['type'];
             this.themeColor = color || this.$conf['themeColor'];
             this.setStyle(this.pickerInfoContainer, ['backgroundColor'], [this.themeColor]);
@@ -65,19 +56,19 @@ var timePicker = (function (window) {
             this.setStyle(this.materialPickerContainer, ['flexDirection', 'transform', 'opacity'], [this.type === 'portrait' ? 'column' : 'row', 'translateY(0)', '1']);
             this.setStyle(this.wrapper, ['visibility', 'opacity'], ['visible', 1]);
         };
-        materialPicker.prototype.getElement = function (tag, ele) {
+        MaterialPicker.prototype.getElement = function (tag, ele) {
             return document.querySelector(tag + "[data-ele=\"" + ele + "\"]");
         };
-        materialPicker.prototype.setStyle = function (ele, styleList, valueList) {
+        MaterialPicker.prototype.setStyle = function (ele, styleList, valueList) {
             styleList.map(function (style, i) { return ele['style'][style] = valueList[i]; });
         };
-        materialPicker.prototype.getMethod = function (ele, eventName) {
+        MaterialPicker.prototype.getMethod = function (ele, eventName) {
             var _this = this;
             return function (date) {
                 _this.$methods[ele.getAttribute(eventName)] && _this.$methods[ele.getAttribute(eventName)](date);
             };
         };
-        materialPicker.prototype.addInputData = function (inputEle) {
+        MaterialPicker.prototype.addInputData = function (inputEle) {
             inputEle.setAttribute('data-component-index', this.inputEleindex.toString());
             this.inputDataList.push({
                 inputEle: inputEle,
@@ -91,23 +82,10 @@ var timePicker = (function (window) {
             });
             this.inputEleindex++;
         };
-        materialPicker.prototype.methods = function (name, fn) {
+        MaterialPicker.prototype.methods = function (name, fn) {
             this.$methods[name] = fn;
         };
-        return materialPicker;
+        return MaterialPicker;
     }());
-    var timePicker = (function (_super) {
-        __extends(timePicker, _super);
-        function timePicker(conf) {
-            return _super.call(this, conf) || this;
-        }
-        timePicker.prototype.createContainer = function () {
-        };
-        timePicker.prototype.init = function () {
-        };
-        timePicker.prototype.show = function () {
-        };
-        return timePicker;
-    }(materialPicker));
     return timePicker;
 })(window);

@@ -1,6 +1,6 @@
 
 
-const DatePicker = (function(window) {
+const MaterialPicker = (function(window) {
 
 
 interface inputData {
@@ -14,6 +14,10 @@ interface inputData {
     //主题色和布局
     themeColor: string;
     type: string;
+
+    //是否使用24小时制（仅在TimePicker中生效）
+    format?: string;
+
     //事件函数
     onSelect(date: string);
     onShow();
@@ -23,7 +27,7 @@ interface inputData {
 
 
 
-class materialPicker {
+class MaterialPicker {
     
     //绑定的input元素合集
     protected inputList: Array<Element> = [];
@@ -64,26 +68,26 @@ class materialPicker {
      */
     protected $methods: object = {};
 
-    constructor(conf?: object) {
+    constructor(className: string, conf?: object) {
         this.$dateInstance = new Date();
 
         //默认配置
         this.$conf = {
-            themeColor: '#4CAF50',
+            themeColor: 'rgba(46, 152, 136, 1)',
             type: 'portrait',
-            directive: 'date-picker'
+            directive: className === 'DatePicker'? 'date-picker': 'time-picker'
         };
 
         this.curInputData = {
             inputEle: null,
             index: -1,
-
             selectedValue: '',
             themeColor: this.$conf['themeColor'],
             type: this.$conf['type'],
-            onSelect: null,
-            onShow: null,
-            onClose: null
+            format: 'true',
+            onSelect: () => {},
+            onShow: () => {},
+            onClose: () => {}
         };
 
         //合并配置项
@@ -109,14 +113,28 @@ class materialPicker {
         this.setStyle(this.materialPickerContainer, ['transform', 'opacity'], ['translateY(-30%)', 0]);
         this.setStyle(this.wrapper, ['visibility', 'opacity'], ['hidden', 0]);
         this.curInputData.onClose();
+
+        this.curInputData = {
+            inputEle: null,
+            index: -1,
+            selectedValue: '',
+            themeColor: this.$conf['themeColor'],
+            type: this.$conf['type'],
+            format: 'true',
+            onSelect: () => {},
+            onShow: () => {},
+            onClose: () => {}
+        };
     }
 
     /**
      * 确认选择
      */
     protected comfirm(value: string): void {
-        this.curInputData.inputEle['value'] = this.curInputData.selectedValue = value;
-        this.curInputData.onSelect(this.curInputData.selectedValue);
+        if(this.curInputData.inputEle) {
+            this.curInputData.inputEle['value'] = this.curInputData.selectedValue = value;
+            this.curInputData.onSelect(this.curInputData.selectedValue);
+        }
     }
 
 
@@ -139,6 +157,28 @@ class materialPicker {
             [this.type === 'portrait'? 'column': 'row', 'translateY(0)', '1']
         );
         this.setStyle(this.wrapper, ['visibility', 'opacity'], ['visible', 1]);
+    }
+
+
+    /**
+     * 兼容的事件绑定封装
+     * @param ele <Element> 要绑定事件的元素
+     * @param event <string> 事件名称
+     * @param fn <e => void> 要绑定的事件的内容
+     */
+    protected addEvent(ele: Element | Node, event: string, fn: (target) => void) {
+        let target;
+
+        ele.addEventListener(event, e => {
+            e = e || window.event;
+
+            target = e.target || e.srcElement;
+
+            e.stopPropagation();
+            e.cancelBubble = true;
+
+            fn(target);
+        });
     }
 
 
@@ -186,10 +226,12 @@ class materialPicker {
             inputEle: inputEle,
             index: this.inputEleindex,
             
-            selectedDate: inputEle['value'],
+            selectedValue: inputEle['value'],
 
             themeColor: inputEle.getAttribute('data-color') || this.themeColor,
             type: inputEle.getAttribute('data-type') || this.type,
+
+            format: inputEle.getAttribute('data-format'),
 
             onSelect: this.getMethod(inputEle, 'onSelect'),
             onShow: this.getMethod(inputEle, 'onShow'),
@@ -219,16 +261,19 @@ class materialPicker {
 
 
 
-return class DatePicker extends materialPicker {
+class DatePicker extends MaterialPicker {
 
     
     //HTML元素-----------------------------------------------
  
     private yearCon: Element = null;
+    private monthCon: Element = null;
+    private dateCon: Element = null;
     private monthDateCon: Element = null;
     private monthYearBody: Element = null;
     private calendarBody: Element = null;
     private yearListCon: Element = null;
+    private weekdayCon: Element = null;
  
 
     //今天的日期格子元素
@@ -245,22 +290,25 @@ return class DatePicker extends materialPicker {
 
     //----------------------------------------------------
 
-    //当前input选中的年月日
+    //当前input选中的年月日星期
     private year: number;
     private month: number;
     private date: number;
+    protected weekday: number;
 
     //用作保存当前滚动到的月份/年份
     private tempYear: number;
     private tempMonth: number;
 
 
-    //今年，今月，今日
+    //今年，今月，今日,今星期几
     private curYear: number;
     private curMonth: number;
     private curDate: number;
+    private curWeekday: number;
 
-
+    //中文数字列表
+    private ZNlist: Array<string>;
 
     /**
      * 动画防抖，限制动画频率
@@ -273,12 +321,14 @@ return class DatePicker extends materialPicker {
      * @param conf 配置项
      */
     constructor(conf?: object) {
-
-        super(conf);
+        super(DatePicker.prototype['constructor']['name'], conf);
 
         this.curYear = this.$dateInstance.getFullYear();
         this.curMonth = this.$dateInstance.getMonth() + 1;
         this.curDate = this.$dateInstance.getDate();
+        this.curWeekday = this.$dateInstance.getDay();
+
+        this.ZNlist = ['日', '一', '二', '三', '四', '五', '六', '七', '八', '九', '十', '十一', '十二'];
 
         //初始化
         this.init();
@@ -287,6 +337,7 @@ return class DatePicker extends materialPicker {
 
 
     //-------------------工具函数--------------------------------
+
 
     /**
      * 设置主面板日期
@@ -300,7 +351,9 @@ return class DatePicker extends materialPicker {
         this.month = this.tempMonth;
 
         this.yearCon.innerHTML = this.year.toString();
-        this.monthDateCon['innerHTML'] = `${this.month}月${this.date}日`;
+        this.monthCon.innerHTML = this.number2ZN(this.month) + '月';
+        this.dateCon.innerHTML = this.date.toString();
+        this.weekdayCon.innerHTML = '周' + this.number2ZN(this.weekday);
     }
 
 
@@ -341,15 +394,38 @@ return class DatePicker extends materialPicker {
             [this.curYear, this.curMonth, this.curDate];
     }
 
+    /**
+     * 将阿拉伯数字转换成为汉字
+     * @param n <number> 要转换的数字
+     */
+    private number2ZN(n: number): string {
+        return this.ZNlist[n];
+    }
+
+    /**
+     * 算出某天是星期几
+     * @param date <string> 要算的日期，格式：年-月-日
+     */
+    private date2weekday(year: number, month: number, date: number): number {
+        return new Date(year, month, date).getDay();
+    }
 
 
     /**
      * 根据input的value，设置组件打开时显示的日期
      */
     private setCurDate() {
+        this.$dateInstance = new Date();
+
+        this.curYear = this.$dateInstance.getFullYear();
+        this.curMonth = this.$dateInstance.getMonth() + 1;
+        this.curDate = this.$dateInstance.getDate();
+        this.curWeekday = this.$dateInstance.getDay();
+
         this.year = this.parseDate(this.curInputData.selectedValue)[0];
         this.month = this.parseDate(this.curInputData.selectedValue)[1];
         this.date = this.parseDate(this.curInputData.selectedValue)[2];
+        this.weekday = this.date2weekday(this.year, this.month, this.date);
     }
 
 
@@ -421,6 +497,7 @@ return class DatePicker extends materialPicker {
         this.setStyle(ul, ['width', 'list-style', 'padding', 'margin'], ['100%', 'none', 0, 0]);
 
         for(let i = this.curYear - 50; i < this.curYear + 50; i++) {
+
             let li = document.createElement('li');
 
             this.setStyle(li, 
@@ -474,7 +551,7 @@ return class DatePicker extends materialPicker {
      * @return template <Element>
      */
     private createCalendarItem(month: number, year: number, dir?: number): Element {
-        let startDay: number = new Date(`${year}-${month}-1`).getDay(),
+        let startDay: number = this.date2weekday(year, month, 1),
             endDay: number = this.monthDaysCount(month, year),
             translateX: string = '',
             style = 'display: flex; align-items: center; justify-content: center; width: 40px; height: 40px; font-size: 12px;border-radius: 20px;cursor: pointer;user-select: none;',
@@ -482,17 +559,16 @@ return class DatePicker extends materialPicker {
             row = Math.ceil((startDay + endDay)/7),
             calendarItem = document.createElement('div');
 
-        
         if(dir !== undefined) {
             translateX = dir === 0? '-100%': '100%';
         }
         else {
             translateX = '0';
         }    
-        
+
         calendarItem.setAttribute('data-ele', `calendar-item-${year}-${month}`);
         this.setStyle(calendarItem, ['position', 'left', 'top', 'transform'], ['absolute', 0, 0, `translateX(${translateX})`]);
-        
+
         for(let j = 0; j < row; j++) {
             let div = document.createElement('div');
             this.setStyle(div, ['display'], ['flex']);
@@ -538,16 +614,22 @@ return class DatePicker extends materialPicker {
     private createContainer(): Element {
         const div = document.createElement('div'),
               template = `
-                <div data-ele="wrapper" style="box-sizing: border-box; position: absolute; top: 0;left: 0;width: 100%; height: 100vh; visibility: hidden; opacity: 0; transition: all 0.2s ease;">
+                <div data-ele="wrapper-d" style="box-sizing: border-box; position: absolute; top: 0;left: 0;width: 100%; height: 100vh; visibility: hidden; opacity: 0; transition: all 0.2s ease;">
                     <div style="display: flex;justify-content: center;align-items: center;width: 100%;height: 100%;background-color: rgba(0, 0, 0, 0.5);">
-                        <div data-ele="material-picker-container" style="display: flex;box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5); transition: all 0.35s ease; transform: translateY(-30%); opacity: 0;">
+                        <div data-ele="material-picker-container-d" style="display: flex;box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5); transition: all 0.35s ease; transform: translateY(-30%); opacity: 0;">
                             
-                            <div data-ele="picker-info-container" style="padding: 20px;color: #fff;box-sizing: border-box;align-items: stretch;">
-                                <div data-ele="year" style="margin-bottom: 14px;color: rgba(255, 255, 255, 0.7);cursor: pointer; transition: all 0.2s ease;"></div>
-                                <div data-ele="month-date" style="color: #fff;font-size: 32px; width: 140px;transition: all 0.2s ease;"></div>
+                            <div data-ele="picker-info-container-d" style="color: #fff;box-sizing: border-box;align-items: stretch; display: flex; flex-direction: column; justify-content: space-between; position: relative; align-items: stretch;">
+                                <div data-ele="weekday" style="padding: 10px 0 10px 0; background-color: rgba(0, 0, 0, 0.2); text-align: center; color: rgba(255, 255, 255, 0.8);"></div>
+                                <div style="padding:20px; width: 140px; align-self: center; flex-grow: 1; display:flex; flex-direction: column;">
+                                    <div data-ele="month-date">
+                                        <div data-ele="month" style="text-align: center;font-size: 24px; transition: all 0.2s ease;"></div>
+                                        <div data-ele="date" style="color: #fff;font-size: 76px; font-weight: 900;transition: all 0.2s ease;text-align: center; padding: 0 0 12px 0;"></div>
+                                    </div>
+                                    <div data-ele="year" style="color: rgba(255, 255, 255, 0.7);cursor: pointer; transition: all 0.2s ease;text-align: center;"></div>
+                                </div>
                             </div>
                 
-                            <div data-ele="picker-body-container" style="display: flex;flex-direction: column;justify-content: space-between;padding: 0 8px 0 8px;box-sizing: border-box;background-color: #fff;align-items: stretch; position: relative;">
+                            <div data-ele="picker-body-container-d" style="display: flex;flex-direction: column;justify-content: space-between;padding: 0 8px 0 8px;box-sizing: border-box;background-color: #fff;align-items: stretch; position: relative;">
                                 <div style="display: flex;justify-content: space-around;align-items: center;font-size: 14px;font-weight: 900;height: 48px;color: rgba(0, 0, 0, 0.7);">
                                     
                                     <button data-ele="btn-pm" style="outline: none;border: none;cursor: pointer; background-color: transparent;">
@@ -567,33 +649,31 @@ return class DatePicker extends materialPicker {
                                 </div>
                 
                                 <div>
-                                    <div style="display: flex;justify-content: space-around;height: 20px;font-size: 12px;color: rgba(0, 0, 0, 0.5);">
-                                        <span>日</span>
-                                        <span>一</span>
-                                        <span>二</span>
-                                        <span>三</span>
-                                        <span>四</span>
-                                        <span>五</span>
-                                        <span>六</span>
+                                    <div style="display: flex;height: 20px;font-size: 12px;color: rgba(0, 0, 0, 0.5); text-align: center;">
+                                        <div style="width: 40px;">日</div>
+                                        <div style="width: 40px;">一</div>
+                                        <div style="width: 40px;">二</div>
+                                        <div style="width: 40px;">三</div>
+                                        <div style="width: 40px;">四</div>
+                                        <div style="width: 40px;">五</div>
+                                        <div style="width: 40px;">六</div>
                                     </div>
                 
                                     <div data-ele="calendar-body" style="overflow: hidden;position: relative; width: 280px; height: 240px;"></div>
                                 </div>
                 
                                 <div style="display: flex;justify-content: space-between;align-items: center; padding: 8px 0 8px 0;">
-                                    <button data-ele="btn-now" style="background-color: transparent;width: 64px;height: 36px;outline: none;border: none;font-size: 14px;cursor: pointer;">今天</button>
+                                    <button data-ele="btn-now-d" style="background-color: transparent;width: 64px;height: 36px;outline: none;border: none;font-size: 14px;cursor: pointer;">今天</button>
                                     <div style="display: flex; width: 40%; justify-content: space-between; align-items: center;">
-                                        <button data-ele="btn-close" style="background-color: transparent;width: 64px;height: 36px;outline: none;border: none;font-size: 14px;cursor: pointer;">关闭</button>
-                                        <button data-ele="btn-comfirm" style="background-color: transparent;width: 64px;height: 36px;outline: none;border: none;font-size: 14px;cursor: pointer;">确定</button>
+                                        <button data-ele="btn-close-d" style="background-color: transparent;width: 64px;height: 36px;outline: none;border: none;font-size: 14px;cursor: pointer;">关闭</button>
+                                        <button data-ele="btn-comfirm-d" style="background-color: transparent;width: 64px;height: 36px;outline: none;border: none;font-size: 14px;cursor: pointer;">确定</button>
                                     </div>
                                 </div>
 
-                                <div data-ele="year-list-con" style="position: absolute; width: 100%; height: 100%; visibility: hidden; background-color: #fff; transition: all 0.15s ease; left: 0; overflow: auto;">
+                                <div data-ele="year-list-con" style="position: absolute; width: 100%; height: 100%; visibility: hidden; background-color: #fff; transition: all 0.15s ease; left: 0; top: 0; overflow: auto;">
 
                                 </div>
                             </div>
-
-
 
                         </div>
                     </div>
@@ -618,11 +698,9 @@ return class DatePicker extends materialPicker {
      */
     private select(): void {
 
-        this.materialPickerContainer.addEventListener('click', e => {
-            e.stopPropagation();
-
-            if(this.isUnselectDateEle(e.target)) {
-                this.toggleFocus(e.target);
+        this.addEvent(this.materialPickerContainer, 'click', target => {
+            if(this.isUnselectDateEle(target)) {
+                this.toggleFocus(target);
                 this.setDate();
             }
         });
@@ -634,22 +712,19 @@ return class DatePicker extends materialPicker {
      */
     private hover(): void {
 
-        this.materialPickerContainer.addEventListener('mouseover', e => {
-            e.stopPropagation();
-
-            if(this.isUnselectDateEle(e.target)) {
-                this.setStyle(e.target, ['backgroundColor', 'opacity', 'color'], [this.themeColor, 0.65, '#fff']);
+        this.addEvent(this.materialPickerContainer, 'mouseover', target => {
+            if(this.isUnselectDateEle(target)) {
+                this.setStyle(target, ['backgroundColor', 'opacity', 'color'], [this.themeColor, 0.65, '#fff']);
             }
         });
 
-        this.materialPickerContainer.addEventListener('mouseout', e => {
-            e.stopPropagation();
 
-            if(this.isUnselectDateEle(e.target)) {
+        this.addEvent(this.materialPickerContainer, 'mouseout', target => {
+            if(this.isUnselectDateEle(target)) {
                 this.setStyle(
-                    e.target, 
+                    target, 
                     ['backgroundColor', 'opacity', 'color'], 
-                    ['#fff', 1, e.target['getAttribute']('data-today')? this.themeColor: '#000']
+                    ['#fff', 1, target['getAttribute']('data-today')? this.themeColor: '#000']
                 );
             }
         });
@@ -659,11 +734,9 @@ return class DatePicker extends materialPicker {
      * 确认年份选择
      */
     private selectYear(): void {
-        this.yearListCon.addEventListener('click', e => {
-            e.stopPropagation();
-
-            if(e.target['getAttribute']('data-ele').indexOf('data-year-item') > -1) {
-                this.toggleYearFocus(e.target);
+        this.addEvent(this.yearListCon, 'click', target => {
+            if(target['getAttribute']('data-ele').indexOf('data-year-item') > -1) {
+                this.toggleYearFocus(target);
 
                 this.renderPanel();
                 this.setDate();
@@ -703,6 +776,7 @@ return class DatePicker extends materialPicker {
         this.lastSelectDateEle = this.curSelectDateEle;
 
         this.date = parseInt(ele['innerHTML']);
+        this.weekday = this.date2weekday(this.year, this.month, this.date);
     }
     
 
@@ -731,6 +805,7 @@ return class DatePicker extends materialPicker {
 
         this.monthYearBody.innerHTML = '';
         this.calendarBody.innerHTML = '';
+
         this.monthYearBody.appendChild(this.createMonthYearItem(this.month, this.year));
         this.calendarBody.appendChild(this.createCalendarItem(this.month, this.year));
     }
@@ -788,12 +863,13 @@ return class DatePicker extends materialPicker {
         /**
          * 动画结束后，删除多余的元素，将动画防抖标准设置为true，表示可以继续动画
          */
-        this.monthYearBody.firstChild.addEventListener('animationend', e => {
+        this.addEvent(this.monthYearBody.firstChild, 'animationend', t => {
             this.monthYearBody.removeChild(this.monthYearBody.children[0]);
             this.calendarBody.removeChild(this.calendarBody.children[0]);
 
             this.allowAnimation = true;
         });
+
     }
 
     /**
@@ -843,7 +919,8 @@ return class DatePicker extends materialPicker {
      */
     private yearListClose() {
         this.setStyle(this.yearCon, ['color', 'font-size', 'cursor'], ['rgba(255, 255, 255, 0.7)', '16px', 'pointer']);
-        this.setStyle(this.monthDateCon, ['color', 'font-size', 'cursor'], ['rgba(255, 255, 255, 1)', '32px', 'auto']);
+        this.setStyle(this.monthCon, ['color', 'font-size', 'cursor'], ['rgba(255, 255, 255, 1)', '24px', 'auto']);
+        this.setStyle(this.dateCon, ['color', 'font-size', 'cursor'], ['rgba(255, 255, 255, 1)', '76px', 'auto']);
 
         this.setStyle(this.yearListCon, ['visibility', 'opacity'], ['hidden', 0]); 
     }   
@@ -858,8 +935,9 @@ return class DatePicker extends materialPicker {
 
         this.toggleYearFocus(toYearEle);
 
-        this.setStyle(this.yearCon, ['color', 'font-size', 'cursor'], ['rgba(255, 255, 255, 1)', '32px', 'auto']);
-        this.setStyle(this.monthDateCon, ['color', 'font-size', 'cursor'], ['rgba(255, 255, 255, 0.7)', '16px', 'pointer']);
+        this.setStyle(this.yearCon, ['color', 'font-size', 'cursor'], ['rgba(255, 255, 255, 1)', '36px', 'auto']);
+        this.setStyle(this.monthCon, ['color', 'font-size', 'cursor'], ['rgba(255, 255, 255, 0.7)', '16px', 'pointer']);
+        this.setStyle(this.dateCon, ['color', 'font-size', 'cursor'], ['rgba(255, 255, 255, 0.7)', '36px', 'pointer']);
 
         this.setStyle(this.yearListCon, ['visibility', 'opacity'], ['visible', 1]); 
     }
@@ -872,9 +950,10 @@ return class DatePicker extends materialPicker {
 
 
     /**
-     * 组件初始化
-     * 将模板插入到页面
-     * 为一些元素绑定事件,标识今天等
+     * 组件初始化,工作内容：
+     * - 将模板插入到页面
+     * - 获取需要的元素
+     * - 为元素绑定事件
      */
     protected init(): void {
 
@@ -883,85 +962,101 @@ return class DatePicker extends materialPicker {
         //将动画插入到一个style标签
         document.querySelector('head').appendChild(this.createAnimationContext());
 
-        this.wrapper = this.getElement('div', 'wrapper'),
-        this.materialPickerContainer = this.getElement('div', 'material-picker-container');
-        this.pickerInfoContainer = this.getElement('div', 'picker-info-container');
+        /**
+         * -------------------获取元素-------------------------------
+         */
+        this.wrapper = this.getElement('div', 'wrapper-d'),
+        this.materialPickerContainer = this.getElement('div', 'material-picker-container-d');
+        this.pickerInfoContainer = this.getElement('div', 'picker-info-container-d');
+
         this.yearCon = this.getElement('div', 'year');
+        this.monthCon = this.getElement('div', 'month');
+        this.dateCon = this.getElement('div', 'date');
         this.monthDateCon = this.getElement('div', 'month-date');
         this.monthYearBody = this.getElement('div', 'month-year-body');
+        this.weekdayCon = this.getElement('div', 'weekday');
 
         this.calendarBody = this.getElement('div', 'calendar-body');
         this.yearListCon = this.getElement('div', 'year-list-con');
 
-        this.closeBtn = this.getElement('button', 'btn-close');
-        this.comfirmBtn = this.getElement('button', 'btn-comfirm');
-        this.nowBtn = this.getElement('button', 'btn-now');
+        this.closeBtn = this.getElement('button', 'btn-close-d');
+        this.comfirmBtn = this.getElement('button', 'btn-comfirm-d');
+        this.nowBtn = this.getElement('button', 'btn-now-d');
 
         this.pmBtn = this.getElement('button', 'btn-pm');
         this.nmBtn = this.getElement('button', 'btn-nm');
 
 
-        this.setCurDate();
-
-        this.renderPanel();
         this.yearListCon.appendChild(this.createYearList(this.year));
+
+
+        /**
+         * -----------------事件绑定------------------------
+         */
 
         //点击input显示组件
         this.inputList.map(ele => {
-            ele.addEventListener('focus', () => {
-
+            this.addEvent(ele, 'focus', t => {
                 //将this.curInputData设置为当前选中的input
                 this.curInputData = this.inputDataList[parseInt(ele.getAttribute('data-component-index'))];
 
                 //显示组件
                 this.show(this.curInputData.themeColor, this.curInputData.type);
             });
+
         });
+
 
         //点击wrapper关闭组件
-        this.wrapper.addEventListener('click', e => {
+        this.addEvent(this.wrapper, 'click', t => {
             this.close();
         });
+
 
         //点击取消按钮关闭组件
-        this.closeBtn.addEventListener('click', e => {
+        this.addEvent(this.closeBtn, 'click', t => {
             this.close();
         });
 
+
         //确认选择
-        this.comfirmBtn.addEventListener('click', e => {
+        this.addEvent(this.comfirmBtn, 'click', t => {
             this.comfirm(`${this.year}-${this.month}-${this.date}`);
             this.close();
         });
 
+
         //回到今天
-        this.nowBtn.addEventListener('click', e => {
+        this.addEvent(this.nowBtn, 'click', t => {
             this.toToday();
         });
+
+
 
 
         /**
          * 为两个切换月份的按钮添加功能
          */
-        this.nmBtn.addEventListener('click', e => {
+        this.addEvent(this.nmBtn, 'click', t => {
             this.slideMonths(1);
         });
 
-        this.pmBtn.addEventListener('click', e => {
+        this.addEvent(this.pmBtn, 'click', t => {
             this.slideMonths(0);
         });
-
 
         /**
          * 点击年份显示年份选择列表
          */
-        this.yearCon.addEventListener('click', e => {
+
+        this.addEvent(this.yearCon, 'click', target => {
             this.yearListShow();
         });
+
         /**
          * 点击月份关闭年份选择列表
          */
-        this.monthDateCon.addEventListener('click', e => {
+        this.addEvent(this.monthDateCon, 'click', target => {
             this.yearListClose();
         });
 
@@ -996,38 +1091,188 @@ return class DatePicker extends materialPicker {
         //获取value的日期并应用到组件
         this.setCurDate();
 
-        console.log(this.month);
-
-        //渲染面板
+        //重新渲染面板
         this.renderPanel();
 
-        //高亮选中的日期
-        this.toggleFocus(this.getElement('span', `date-item-${this.date}`));
-
-        //设置组件的选择日期为input选择的
+        //设置组件的面板显示的日期为input选择的
         this.setDate();
         
         //响应事件onShow
         this.curInputData.onShow();
     }
-
 }
 
 
 
 
 
+class TimePicker extends MaterialPicker {
+
+
+    /**
+     * 当前时/分/上下午
+     */
+    private curHour: number;
+    private curMinute: number;
+    private curMeridiem: number;
+
+    /**
+     * 选择的时/分/上下午
+     */
+    private hour: number;
+    private minute: number;
+    private meridiem: number;
+
+
+    constructor(conf?: object) {
+        super(TimePicker.prototype['constructor']['name'], conf);
+
+        this.curHour = this.$dateInstance.getHours();
+
+        //初始化
+        this.init();
+    }
+
+
+    /**
+     * 创建模板---------------------------------------------------------------------------
+     */
+
+    private createContainer(): Element {
+        const div = document.createElement('div'),
+              template = `
+              <div data-ele="wrapper-t" style="visibility: hidden; opacity: 0; box-sizing: border-box; position: absolute; top: 0;left: 0;width: 100%; height: 100vh; transition: all 0.2s ease;">
+                <div style="display: flex;justify-content: center;align-items: center;width: 100%;height: 100%;background-color: rgba(0, 0, 0, 0.5);">
+                    <div data-ele="material-picker-container-t" style="transform: translateY(-30%); opacity: 0;display: flex;box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5); transition: all 0.35s ease;">
+                        <div data-ele="picker-info-container-t" style="color: #fff;box-sizing: border-box;align-items: stretch; display: flex; flex-direction: column; justify-content: space-between; position: relative; align-items: stretch;">
+                            8:30
+                        </div>
+
+                        <div data-ele="picker-body-container-t" style="display: flex;flex-direction: column;justify-content: space-between;padding: 0 8px 0 8px;box-sizing: border-box;background-color: #fff;align-items: stretch; position: relative;">
+                            
+                            <div data-ele="clock-body" style="padding: 8px 16px 8px 16px;">
+                                <div style="width: 200px; height: 200px; border-radius: 50%; background-color: #eee;"></div>
+                            </div>
+
+                            <div style="display: flex;justify-content: space-between;align-items: center; padding: 8px 0 8px 0;">
+                                <button data-ele="btn-now-t" style="background-color: transparent;width: 64px;height: 36px;outline: none;border: none;font-size: 14px;cursor: pointer;">今天</button>
+                                <div style="display: flex; width: 40%; justify-content: space-between; align-items: center;">
+                                    <button data-ele="btn-close-t" style="background-color: transparent;width: 64px;height: 36px;outline: none;border: none;font-size: 14px;cursor: pointer;">关闭</button>
+                                    <button data-ele="btn-comfirm-t" style="background-color: transparent;width: 64px;height: 36px;outline: none;border: none;font-size: 14px;cursor: pointer;">确定</button>
+                                </div>
+                            </div>
+
+                        </div>
+                    </div>
+                </div>
+            </div>
+              `;
+
+        div.innerHTML = template;
+
+        return div.children[0];
+    }
 
 
 
 
+    /**
+     * 功能函数---------------------------------------------------------------------------
+     */
+
+
+    //回到现在 
+    private toNow() {
+
+    }
+    
 
 
 
 
+    /**
+     * 生命周期--------------------------------------------------------------------------
+     */
 
 
+    protected init() {
+        //首先将模板插入body
+        document.body.insertBefore(this.createContainer(), document.body.getElementsByTagName('script')[0]);
 
+
+        /**
+         * ----------------获取需要的html元素----------------
+         */
+
+        this.wrapper = this.getElement('div', 'wrapper-t'),
+        this.materialPickerContainer = this.getElement('div', 'material-picker-container-t');
+        this.pickerInfoContainer = this.getElement('div', 'picker-info-container-t');
+
+        this.closeBtn = this.getElement('button', 'btn-close-t');
+        this.comfirmBtn = this.getElement('button', 'btn-comfirm-t');
+        this.nowBtn = this.getElement('button', 'btn-now-t');
+
+        /**
+         * -----------------事件绑定------------------------
+         */
+
+        //点击input显示组件
+        this.inputList.map(ele => {
+            this.addEvent(ele, 'focus', t => {
+                //将this.curInputData设置为当前选中的input
+                this.curInputData = this.inputDataList[parseInt(ele.getAttribute('data-component-index'))];
+
+                //显示组件
+                this.show(this.curInputData.themeColor, this.curInputData.type);
+            });
+
+        });
+
+
+        //点击wrapper关闭组件
+        this.addEvent(this.wrapper, 'click', t => {
+            this.close();
+        });
+
+
+        //点击取消按钮关闭组件
+        this.addEvent(this.closeBtn, 'click', t => {
+            this.close();
+        });
+
+
+        //确认选择
+        this.addEvent(this.comfirmBtn, 'click', t => {
+            this.comfirm(``);
+            this.close();
+        });
+
+
+        //回到今天
+        this.addEvent(this.nowBtn, 'click', t => {
+            this.toNow();
+        });
+
+    }
+
+
+    /**
+     * 显示组件
+     * @param themeColor 主题色
+     * @param type 布局类型
+     */
+    public show(themeColor: string, type: string) {
+        this.setTheme(themeColor, type);
+    }
+
+
+}
+
+
+return {
+    DatePicker,
+    TimePicker
+};
 
 
 })(window);
