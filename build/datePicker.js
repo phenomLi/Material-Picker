@@ -27,6 +27,7 @@ var MaterialPicker = (function (window) {
             this.$conf = {
                 themeColor: 'rgba(46, 152, 136, 1)',
                 type: 'portrait',
+                format: 'true',
                 directive: className === 'DatePicker' ? 'date-picker' : 'time-picker'
             };
             this.curInputData = {
@@ -63,15 +64,19 @@ var MaterialPicker = (function (window) {
                 onClose: function () { }
             };
         };
-        MaterialPicker.prototype.comfirm = function (value) {
+        MaterialPicker.prototype.comfirm = function (fn) {
             if (this.curInputData.inputEle) {
-                this.curInputData.inputEle['value'] = this.curInputData.selectedValue = value;
+                this.curInputData.inputEle['value'] = this.curInputData.selectedValue = this.value;
                 this.curInputData.onSelect(this.curInputData.selectedValue);
+                if (fn && typeof fn === 'function') {
+                    fn(this.value);
+                }
             }
         };
-        MaterialPicker.prototype.setTheme = function (color, type) {
+        MaterialPicker.prototype.setTheme = function (color, type, format) {
             this.type = type || this.$conf['type'];
             this.themeColor = color || this.$conf['themeColor'];
+            this.format = format || this.$conf['format'];
             this.setStyle(this.pickerInfoContainer, ['backgroundColor'], [this.themeColor]);
             this.setStyle(this.closeBtn, ['color'], [this.themeColor]);
             this.setStyle(this.comfirmBtn, ['color'], [this.themeColor]);
@@ -81,6 +86,9 @@ var MaterialPicker = (function (window) {
         };
         MaterialPicker.prototype.addEvent = function (ele, event, fn) {
             var target;
+            if (event === 'click') {
+                this.addEvent(ele, 'touchend', fn);
+            }
             ele.addEventListener(event, function (e) {
                 e = e || window.event;
                 target = e.target || e.srcElement;
@@ -152,6 +160,8 @@ var MaterialPicker = (function (window) {
         DatePicker.prototype.setDate = function () {
             this.year = this.tempYear;
             this.month = this.tempMonth;
+            this.weekday = this.date2weekday(this.year, this.month, this.date);
+            this.value = this.year + "-" + this.month + "-" + this.date;
             this.yearCon.innerHTML = this.year.toString();
             this.monthCon.innerHTML = this.number2ZN(this.month) + '月';
             this.dateCon.innerHTML = this.date.toString();
@@ -313,7 +323,6 @@ var MaterialPicker = (function (window) {
             this.setStyle(this.curSelectDateEle, ['backgroundColor', 'opacity', 'color'], [this.themeColor, 1, '#fff']);
             this.lastSelectDateEle = this.curSelectDateEle;
             this.date = parseInt(ele['innerHTML']);
-            this.weekday = this.date2weekday(this.year, this.month, this.date);
         };
         DatePicker.prototype.toggleYearFocus = function (ele) {
             this.curSelectYear = ele;
@@ -459,7 +468,7 @@ var MaterialPicker = (function (window) {
                 _this.close();
             });
             this.addEvent(this.comfirmBtn, 'click', function (t) {
-                _this.comfirm(_this.year + "-" + _this.month + "-" + _this.date);
+                _this.comfirm();
                 _this.close();
             });
             this.addEvent(this.nowBtn, 'click', function (t) {
@@ -494,16 +503,66 @@ var MaterialPicker = (function (window) {
         __extends(TimePicker, _super);
         function TimePicker(conf) {
             var _this = _super.call(this, TimePicker.prototype['constructor']['name'], conf) || this;
+            _this.hourCon = null;
+            _this.minuteCon = null;
+            _this.meridiemCon = null;
+            _this.hourClock = null;
+            _this.hourClock24 = null;
+            _this.minuteClock = null;
             _this.curHour = _this.$dateInstance.getHours();
+            _this.curMinute = _this.$dateInstance.getMinutes();
             _this.init();
             return _this;
         }
-        TimePicker.prototype.createContainer = function () {
-            var div = document.createElement('div'), template = "\n              <div data-ele=\"wrapper-t\" style=\"visibility: hidden; opacity: 0; box-sizing: border-box; position: absolute; top: 0;left: 0;width: 100%; height: 100vh; transition: all 0.2s ease;\">\n                <div style=\"display: flex;justify-content: center;align-items: center;width: 100%;height: 100%;background-color: rgba(0, 0, 0, 0.5);\">\n                    <div data-ele=\"material-picker-container-t\" style=\"transform: translateY(-30%); opacity: 0;display: flex;box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5); transition: all 0.35s ease;\">\n                        <div data-ele=\"picker-info-container-t\" style=\"color: #fff;box-sizing: border-box;align-items: stretch; display: flex; flex-direction: column; justify-content: space-between; position: relative; align-items: stretch;\">\n                            8:30\n                        </div>\n\n                        <div data-ele=\"picker-body-container-t\" style=\"display: flex;flex-direction: column;justify-content: space-between;padding: 0 8px 0 8px;box-sizing: border-box;background-color: #fff;align-items: stretch; position: relative;\">\n                            \n                            <div data-ele=\"clock-body\" style=\"padding: 8px 16px 8px 16px;\">\n                                <div style=\"width: 200px; height: 200px; border-radius: 50%; background-color: #eee;\"></div>\n                            </div>\n\n                            <div style=\"display: flex;justify-content: space-between;align-items: center; padding: 8px 0 8px 0;\">\n                                <button data-ele=\"btn-now-t\" style=\"background-color: transparent;width: 64px;height: 36px;outline: none;border: none;font-size: 14px;cursor: pointer;\">\u4ECA\u5929</button>\n                                <div style=\"display: flex; width: 40%; justify-content: space-between; align-items: center;\">\n                                    <button data-ele=\"btn-close-t\" style=\"background-color: transparent;width: 64px;height: 36px;outline: none;border: none;font-size: 14px;cursor: pointer;\">\u5173\u95ED</button>\n                                    <button data-ele=\"btn-comfirm-t\" style=\"background-color: transparent;width: 64px;height: 36px;outline: none;border: none;font-size: 14px;cursor: pointer;\">\u786E\u5B9A</button>\n                                </div>\n                            </div>\n\n                        </div>\n                    </div>\n                </div>\n            </div>\n              ";
+        TimePicker.prototype.createMeridiemCon = function () {
+            var div = document.createElement('div'), template = "\n                <div style=\"font-size: 22px;margin-left: 12px;\">\n                    <div data-ele=\"am\" style=\"margin-bottom: 4px; cursor: pointer;\">AM</div>\n                    <div data-ele=\"pm\" style=\"cursor: pointer;\">PM</div>\n                </div>\n              ";
             div.innerHTML = template;
             return div.children[0];
         };
+        TimePicker.prototype.createPointer = function () {
+        };
+        TimePicker.prototype.createClock = function (radius, start, end, step) {
+            var div = document.createElement('div'), curAngle = 0, angle = 2 * Math.PI / 12, r = radius / 2 - 20;
+            this.setStyle(div, ['position', 'width', 'height', 'border-radius', 'background-color', 'top', 'left'], ['absolute', '100%', '100%', '50%', '#eee', 0, 0]);
+            for (var i = end; i > start; i -= step) {
+                var clockItem = document.createElement('div'), x = 0, y = 0;
+                curAngle = angle * i;
+                x = r * Math.sin(curAngle);
+                y = -1 * r * Math.cos(curAngle);
+                this.setStyle(clockItem, ['position', 'width', 'height', 'text-align', 'line-height', 'color', 'transform-origin', 'left', 'top', 'font-size', 'border-radius'], ['absolute', '20px', '20px', 'center', '20px', '#666', '50% 50%', 'calc(50% - 10px)', 'calc(50% - 10px)', '18px', '50%']);
+                this.setStyle(clockItem, ['transform'], ["translate(" + x + "px, " + y + "px)"]);
+                clockItem.innerHTML = i.toString();
+                div.appendChild(clockItem);
+            }
+            return div;
+        };
+        TimePicker.prototype.createContainer = function () {
+            var div = document.createElement('div'), template = "\n              <div data-ele=\"wrapper-t\" style=\"visibility: hidden; opacity: 0; box-sizing: border-box; position: absolute; top: 0;left: 0;width: 100%; height: 100vh; transition: all 0.2s ease;\">\n                <div style=\"display: flex;justify-content: center;align-items: center;width: 100%;height: 100%;background-color: rgba(0, 0, 0, 0.5);\">\n                    <div data-ele=\"material-picker-container-t\" style=\"transform: translateY(-30%); opacity: 0;display: flex;box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5); transition: all 0.35s ease;\">\n                        <div data-ele=\"picker-info-container-t\" style=\"padding: 20px; color: #fff;box-sizing: border-box;align-items: stretch; display: flex; justify-content: center; align-items: center;\">\n                            <div style=\"display: flex;font-size: 56px;\">\n                                <div data-ele=\"hour\" style=\"cursor: pointer;\"></div>\n                                <div>:</div>\n                                <div data-ele=\"minute\" style=\"cursor: pointer;\"></div>\n                            </div>\n                            <div data-ele=\"meridiem-con\"></div>\n                        </div>\n\n                        <div data-ele=\"picker-body-container-t\" style=\"display: flex;flex-direction: column;justify-content: space-between;padding: 0 8px 0 8px;box-sizing: border-box;background-color: #fff;align-items: stretch; position: relative;\">\n                            \n                            <div data-ele=\"clock-container\" style=\"padding: 20px 0 20px 0;\">\n                                <div>\n                                    <div data-ele=\"hour-clock\" style=\"width: 260px; height: 260px; display: flex; justify-content: center; align-items: center;position: relative;\">\n                                        <div data-ele=\"hour-clock-24\" style=\"z-index: 10; width: 180px; height: 180px;position: relative;\"></div>\n                                    </div>\n\n                                    <div data-ele=\"minute-clock\" style=\"width: 260px; height: 260px; top: 0; left: 0; position:absolute;visibility: hidden; opacity: 0;\"></div>\n                                </div>\n                            </div>\n\n                            <div style=\"display: flex;justify-content: space-between;align-items: center; padding: 8px 0 8px 0;\">\n                                <button data-ele=\"btn-now-t\" style=\"background-color: transparent;width: 64px;height: 36px;outline: none;border: none;font-size: 14px;cursor: pointer;\">\u4ECA\u5929</button>\n                                <div style=\"display: flex; width: 40%; justify-content: space-between; align-items: center;\">\n                                    <button data-ele=\"btn-close-t\" style=\"background-color: transparent;width: 64px;height: 36px;outline: none;border: none;font-size: 14px;cursor: pointer;\">\u5173\u95ED</button>\n                                    <button data-ele=\"btn-comfirm-t\" style=\"background-color: transparent;width: 64px;height: 36px;outline: none;border: none;font-size: 14px;cursor: pointer;\">\u786E\u5B9A</button>\n                                </div>\n                            </div>\n\n                        </div>\n                    </div>\n                </div>\n            </div>\n              ";
+            div.innerHTML = template;
+            return div.children[0];
+        };
+        TimePicker.prototype.parseDate = function (time) {
+            return time ?
+                [parseInt(time.split(':')[0]), parseInt(time.split(':')[1])] :
+                [this.curHour, this.curMinute];
+        };
+        TimePicker.prototype.getTime = function () {
+            this.$dateInstance = new Date();
+            this.curHour = this.$dateInstance.getHours();
+            this.curMinute = this.$dateInstance.getMinutes();
+            this.hour = this.parseDate(this.curInputData.selectedValue)[0];
+            this.minute = this.parseDate(this.curInputData.selectedValue)[1];
+        };
+        TimePicker.prototype.setTime = function () {
+            this.value = this.hour + ":" + this.minute;
+            this.hourCon.innerHTML = this.hour.toString();
+            this.minuteCon.innerHTML = this.minute.toString();
+        };
         TimePicker.prototype.toNow = function () {
+        };
+        TimePicker.prototype.renderPanel = function () {
+            this.meridiemCon.innerHTML = '';
+            this.format !== 'true' && this.meridiemCon.appendChild(this.createMeridiemCon());
         };
         TimePicker.prototype.init = function () {
             var _this = this;
@@ -511,31 +570,45 @@ var MaterialPicker = (function (window) {
             this.wrapper = this.getElement('div', 'wrapper-t'),
                 this.materialPickerContainer = this.getElement('div', 'material-picker-container-t');
             this.pickerInfoContainer = this.getElement('div', 'picker-info-container-t');
+            this.hourCon = this.getElement('div', 'hour');
+            this.minuteCon = this.getElement('div', 'minute');
+            this.meridiemCon = this.getElement('div', 'meridiem-con');
+            this.hourClock = this.getElement('div', 'hour-clock');
+            this.hourClock24 = this.getElement('div', 'hour-clock-24');
+            this.minuteClock = this.getElement('div', 'minute-clock');
             this.closeBtn = this.getElement('button', 'btn-close-t');
             this.comfirmBtn = this.getElement('button', 'btn-comfirm-t');
             this.nowBtn = this.getElement('button', 'btn-now-t');
+            this.hourClock.appendChild(this.createClock(260, 0, 12, 1));
+            this.format !== 'true' && this.hourClock24.appendChild(this.createClock(190, 12, 24, 1));
             this.inputList.map(function (ele) {
                 _this.addEvent(ele, 'focus', function (t) {
                     _this.curInputData = _this.inputDataList[parseInt(ele.getAttribute('data-component-index'))];
-                    _this.show(_this.curInputData.themeColor, _this.curInputData.type);
+                    _this.show(_this.curInputData.themeColor, _this.curInputData.type, _this.curInputData.format);
                 });
             });
             this.addEvent(this.wrapper, 'click', function (t) {
                 _this.close();
             });
+            this.addEvent(this.hourClock, 'click', function (t) {
+                console.log('455');
+            });
             this.addEvent(this.closeBtn, 'click', function (t) {
                 _this.close();
             });
             this.addEvent(this.comfirmBtn, 'click', function (t) {
-                _this.comfirm("");
+                _this.comfirm();
                 _this.close();
             });
             this.addEvent(this.nowBtn, 'click', function (t) {
                 _this.toNow();
             });
         };
-        TimePicker.prototype.show = function (themeColor, type) {
-            this.setTheme(themeColor, type);
+        TimePicker.prototype.show = function (themeColor, type, format) {
+            this.setTheme(themeColor, type, format);
+            this.getTime();
+            this.renderPanel();
+            this.setTime();
         };
         return TimePicker;
     }(MaterialPicker));
