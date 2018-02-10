@@ -120,6 +120,11 @@ class MaterialPicker {
     public close() {
         this.setStyle(this.materialPickerContainer, ['transform', 'opacity'], ['translateY(-30%)', 0]);
         this.setStyle(this.wrapper, ['visibility', 'opacity'], ['hidden', 0]);
+
+        setTimeout(() => {
+            this.setStyle(this.wrapper, ['display'], ['none']);
+        }, 200);
+
         this.curInputData.onClose();
 
         this.curInputData = {
@@ -165,11 +170,13 @@ class MaterialPicker {
         this.setStyle(this.comfirmBtn, ['color'], [this.themeColor]);
         this.setStyle(this.nowBtn, ['color'], [this.themeColor]);
 
-        this.setStyle(this.materialPickerContainer, 
-            ['flexDirection', 'transform', 'opacity'], 
-            [this.type === 'portrait'? 'column': 'row', 'translateY(0)', '1']
-        );
-        this.setStyle(this.wrapper, ['visibility', 'opacity'], ['visible', 1]);
+        this.setStyle(this.materialPickerContainer, ['flexDirection'], [this.type === 'portrait'? 'column': 'row']);
+        
+        this.setStyle(this.wrapper, ['display'], ['block']);
+        setTimeout(() => {
+            this.setStyle(this.materialPickerContainer, ['transform', 'opacity'], ['translateY(0)', '1']);
+            this.setStyle(this.wrapper, ['visibility', 'opacity'], ['visible', 1]);
+        }, 0);
     }
 
 
@@ -179,7 +186,7 @@ class MaterialPicker {
      * @param event <string> 事件名称
      * @param fn <e => void> 要绑定的事件的内容
      */
-    protected addEvent(ele: Element | Node, event: string, fn: (target) => void) {
+    protected addEvent(ele: Element | Node, event: string, fn: (target, e?) => void) {
         let target;
 
         //若是点击，再为移动端绑定touch事件
@@ -187,15 +194,26 @@ class MaterialPicker {
             this.addEvent(ele, 'touchend', fn);
         }
 
+        // if(event === 'mousedown') {
+        //     this.addEvent(ele, 'touchstart', fn);
+        // }
+
+        // if(event === 'mousemove') {
+        //     this.addEvent(ele, 'touchmove', fn);
+        // }
+
+        // if(event === 'mouseup') {
+        //     this.addEvent(ele, 'touchend', fn);
+        // }
+
         ele.addEventListener(event, e => {
             e = e || window.event;
 
             target = e.target || e.srcElement;
 
             e.stopPropagation();
-            e.cancelBubble = true;
 
-            fn(target);
+            fn(target, e);
         });
     }
 
@@ -1136,9 +1154,35 @@ class DatePicker extends MaterialPicker {
 
 
 
-
-
-
+/**
+ * 每个时钟的元素
+ */
+interface clockInfo {
+    //时钟圆盘的html元素
+    clock: Element;
+    //24时钟圆盘的html元素
+    clock24?: Element;
+    //时钟指针的html元素
+    clockPointer: Element;
+    //时钟顶点的html元素
+    clockPointerPeak: Element;
+    //时钟指针转轴html元素
+    clockPointerCenter: Element;
+    //时钟类型名称
+    type: string;
+    //时钟刻度的html元素
+    itemList: object;
+    //时钟刻度间隔（单位：度数）
+    interval: number;
+    //显示时钟数字的html元素
+    viewEle: Element;
+    //当前时间的HTML元素
+    curEle: Element;
+    //当前指向的刻度元素
+    curSelectClockItem: Element;
+    //上一次指向的刻度元素
+    lastSelectClockItem: Element;
+};
 
 
 
@@ -1153,10 +1197,42 @@ class TimePicker extends MaterialPicker {
     private minuteCon: Element = null;
 
     private meridiemCon: Element = null;
+    private amCon: Element = null;
+    private pmCon: Element = null;
 
-    private hourClock: Element = null;
-    private hourClock24: Element = null;
-    private minuteClock: Element = null;
+    /**
+     * 小时时钟和分钟时钟的信息
+     */
+    private hourClock: clockInfo = {
+        clock: null,
+        clock24: null,
+        clockPointer: null,
+        clockPointerPeak: null,
+        clockPointerCenter: null,
+        type: 'hour',
+        itemList: {},
+        interval: 360/12,
+        viewEle: null,
+        curEle: null,
+        curSelectClockItem: null,
+        lastSelectClockItem: null
+    };
+    private minuteClock: clockInfo = {
+        clock: null,
+        clockPointer: null,
+        clockPointerPeak: null,
+        clockPointerCenter: null,
+        type: 'minute',
+        itemList: {},
+        interval: 360/60,
+        viewEle: null,
+        curEle: null,
+        curSelectClockItem: null,
+        lastSelectClockItem: null
+    };
+
+
+
 
     /**
      * ----------------------------------
@@ -1177,6 +1253,29 @@ class TimePicker extends MaterialPicker {
     private minute: number;
     private meridiem: string;
 
+    //时钟圆盘的中点坐标
+    private centerX: number;
+    private centerY: number;
+
+    //当前鼠标离时钟圆盘的中点的距离
+    private distance: number;
+
+    /**
+     * 标志变量：<boolean> 用作判断是否按下鼠标左键
+     * true: 按下
+     * false: 松开
+     */
+    private clickFlag: boolean;
+    //private minuteClockFlag: boolean;
+
+
+    //当前/上一次指向的时钟刻度（高亮）
+    private curClockItem: Element;
+    private lastClockItem: Element;
+
+    //当前/上一次选择的am/pm
+    private curMeridiemEle: Element;
+    private lastMeridiemEle: Element;
 
 
     constructor(conf?: object) {
@@ -1184,6 +1283,13 @@ class TimePicker extends MaterialPicker {
 
         this.curHour = this.$dateInstance.getHours();
         this.curMinute = this.$dateInstance.getMinutes();
+        this.curMeridiem = this.curHour > 12? 'pm': 'am';
+
+        this.centerX = 260/2;
+        this.centerY = 260/2;
+
+        this.curClockItem = this.lastClockItem = null;
+        this.curMeridiemEle = this.lastMeridiemEle = null;
 
         //初始化
         this.init();
@@ -1198,9 +1304,9 @@ class TimePicker extends MaterialPicker {
     private createMeridiemCon(): Element {
         const div = document.createElement('div'),
               template = `
-                <div style="font-size: 22px;margin-left: 12px;">
-                    <div data-ele="am" style="margin-bottom: 4px; cursor: pointer;">AM</div>
-                    <div data-ele="pm" style="cursor: pointer;">PM</div>
+                <div style="font-size: 22px; margin-left: 12px;">
+                    <div data-ele="am" style="margin-bottom: 4px; cursor: pointer;color: rgba(255, 255, 255, 0.6);">AM</div>
+                    <div data-ele="pm" style="cursor: pointer;color: rgba(255, 255, 255, 0.6);">PM</div>
                 </div>
               `;
         
@@ -1210,8 +1316,37 @@ class TimePicker extends MaterialPicker {
     }
 
 
-    private createPointer(): Element {
+    private createPointer(clock: clockInfo): Element {
+        const pointer = document.createElement('div'),
+              center = document.createElement('div'),
+              peak = document.createElement('div');
+
+        this.setStyle(
+            pointer, 
+            ['position', 'width', 'height', 'top', 'left', 'transform-origin'],
+            ['absolute', '4px', '42%', '8%', 'calc(50% - 2px)', 'center bottom']
+        );      
         
+        this.setStyle(
+            center, 
+            ['position', 'width', 'height', 'top', 'left', 'border-radius'],
+            ['absolute', '8px', '8px', 'calc(100% - 4px)', '-2px', '50%']
+        );
+
+        this.setStyle(
+            peak, 
+            ['position', 'width', 'height', 'background-color', 'top', 'left', 'border-radius', 'box-sizing'],
+            ['absolute', '16px', '16px', '#FFF', '-8px', '-6px', '50%', 'border-box']
+        );
+
+        clock.clockPointer = pointer;
+        clock.clockPointerCenter = center;
+        clock.clockPointerPeak = peak;
+
+        pointer.appendChild(center);
+        pointer.appendChild(peak);
+
+        return pointer;
     }
 
 
@@ -1233,7 +1368,7 @@ class TimePicker extends MaterialPicker {
             ['absolute', '100%', '100%', '50%', '#eee', 0, 0]
         );
 
-        for(let i = end; i > start; i -= step) {
+        for(let i = 12, j = end; i > 0 && j > start; i --, j -= step) {
             let clockItem = document.createElement('div'),
                 x = 0,
                 y = 0;
@@ -1243,8 +1378,8 @@ class TimePicker extends MaterialPicker {
             y = -1*r*Math.cos(curAngle);
 
             this.setStyle(clockItem, 
-                ['position', 'width', 'height', 'text-align', 'line-height', 'color', 'transform-origin', 'left', 'top', 'font-size', 'border-radius'],
-                ['absolute', '20px', '20px', 'center', '20px', '#666', '50% 50%', 'calc(50% - 10px)', 'calc(50% - 10px)', '18px', '50%']
+                ['position', 'width', 'height', 'text-align', 'line-height', 'color', 'transform-origin', 'left', 'top', 'font-size', 'border-radius', 'z-index', 'user-select'],
+                ['absolute', '30px', '30px', 'center', '30px', '#666', '50% 50%', 'calc(50% - 15px)', 'calc(50% - 15px)', '16px', '50%', 10, 'none']
             );
 
             this.setStyle(clockItem, 
@@ -1252,7 +1387,11 @@ class TimePicker extends MaterialPicker {
                 [`translate(${x}px, ${y}px)`]
             );
 
-            clockItem.innerHTML = i.toString();
+            end !== 60?
+                clockItem.setAttribute('data-ele', `hourclock-item-${j === 60? 0: j}`):
+                clockItem.setAttribute('data-ele', `minuteclock-item-${j === 60? 0: j}`);
+            
+            clockItem.innerHTML = j === 60? '00': j.toString();
 
             div.appendChild(clockItem);
         }     
@@ -1269,9 +1408,9 @@ class TimePicker extends MaterialPicker {
                 <div style="display: flex;justify-content: center;align-items: center;width: 100%;height: 100%;background-color: rgba(0, 0, 0, 0.5);">
                     <div data-ele="material-picker-container-t" style="transform: translateY(-30%); opacity: 0;display: flex;box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5); transition: all 0.35s ease;">
                         <div data-ele="picker-info-container-t" style="padding: 20px; color: #fff;box-sizing: border-box;align-items: stretch; display: flex; justify-content: center; align-items: center;">
-                            <div style="display: flex;font-size: 56px;">
+                            <div style="display: flex;font-size: 56px;width: 150px; justify-content: center;">
                                 <div data-ele="hour" style="cursor: pointer;"></div>
-                                <div>:</div>
+                                <div style="color: rgba(255, 255, 255, 0.6);">:</div>
                                 <div data-ele="minute" style="cursor: pointer;"></div>
                             </div>
                             <div data-ele="meridiem-con"></div>
@@ -1281,16 +1420,16 @@ class TimePicker extends MaterialPicker {
                             
                             <div data-ele="clock-container" style="padding: 20px 0 20px 0;">
                                 <div>
-                                    <div data-ele="hour-clock" style="width: 260px; height: 260px; display: flex; justify-content: center; align-items: center;position: relative;">
-                                        <div data-ele="hour-clock-24" style="z-index: 10; width: 180px; height: 180px;position: relative;"></div>
+                                    <div data-ele="hour-clock" style="width: 260px; height: 260px; display: flex; justify-content: center; align-items: center;position: relative;visibility: hidden; opacity: 0;transition: all 0.2s ease;">
+                                        <div data-ele="hour-clock-24" style="width: 180px; height: 180px;position: absolute;top:40px; left:40px;"></div>
                                     </div>
 
-                                    <div data-ele="minute-clock" style="width: 260px; height: 260px; top: 0; left: 0; position:absolute;visibility: hidden; opacity: 0;"></div>
+                                    <div data-ele="minute-clock" style="width: 260px; height: 260px; top: 20px; left: 8px; position:absolute;visibility: hidden; opacity: 0;transition: all 0.2s ease;"></div>
                                 </div>
                             </div>
 
                             <div style="display: flex;justify-content: space-between;align-items: center; padding: 8px 0 8px 0;">
-                                <button data-ele="btn-now-t" style="background-color: transparent;width: 64px;height: 36px;outline: none;border: none;font-size: 14px;cursor: pointer;">今天</button>
+                                <button data-ele="btn-now-t" style="background-color: transparent;width: 64px;height: 36px;outline: none;border: none;font-size: 14px;cursor: pointer;">现在</button>
                                 <div style="display: flex; width: 40%; justify-content: space-between; align-items: center;">
                                     <button data-ele="btn-close-t" style="background-color: transparent;width: 64px;height: 36px;outline: none;border: none;font-size: 14px;cursor: pointer;">关闭</button>
                                     <button data-ele="btn-comfirm-t" style="background-color: transparent;width: 64px;height: 36px;outline: none;border: none;font-size: 14px;cursor: pointer;">确定</button>
@@ -1315,13 +1454,85 @@ class TimePicker extends MaterialPicker {
      * 功能函数---------------------------------------------------------------------------
      */
 
+
+    private getClockItemList() {
+        for(let i = 0; i < 24; i++) {
+            this.hourClock.itemList[i*this.hourClock.interval] = this.getElement('div', `hourclock-item-${this.angle2Time(this.hourClock, i*this.hourClock.interval, this.hourClock.interval)}`);
+        }
+
+        for(let i = 0; i < 60; i+=5) {
+            this.minuteClock.itemList[i*this.minuteClock.interval] = this.getElement('div', `minuteclock-item-${i}`);
+        }
+    }
+
+    /**
+     * 角度转时间
+     * @param angle 角度
+     * @param interval 时间间隔 
+     */
+    private angle2Time(clock: clockInfo, angle: number): number {
+        if(clock.type === 'hour') {
+            if(angle === 0) return 12;
+            else if(angle === 360) return 24;
+            else return angle/clock.interval;
+        }
+        else {
+            return angle/clock.interval;
+        }
+    }
+
+
+    /**
+     * 坐标转换成角度
+     * @param x 横轴
+     * @param y 纵轴
+     * @param step 跨度
+     */
+    private XY2angle(x: number, y: number, step: number): number {
+        let n = 0,
+            length = 0,
+            angle = 0;
+
+        n = (x - this.centerX) > 0? 1: -1;
+
+        this.distance = Math.sqrt(Math.pow(x - this.centerX, 2) + Math.pow(y - this.centerY, 2));
+
+        angle = n*180/Math.PI*Math.acos((this.centerY - y)/this.distance);
+
+        angle = angle > 0? angle: (360 + angle);
+
+        return Math.round(angle/step)*step === 360? 0: Math.round(angle/step)*step;
+    }
+
+
+
+    /**
+     * 页面坐标转换为时钟内坐标
+     */
+    private transformXY(x: number, y: number): object {
+        return {
+            x: Math.floor(x - this.hourClock.clock.getBoundingClientRect().left),
+            y: Math.floor(y - this.hourClock.clock.getBoundingClientRect().top),
+        };
+    }
+
+
     /**
      * 解析时间格式
      */
     private parseDate(time) {
-        return time?  
-            [parseInt(time.split(':')[0]), parseInt(time.split(':')[1])]:
-            [this.curHour, this.curMinute];
+        let value = [];
+
+        if(time) {
+            this.format !== 'true' && (this.meridiem = time.split(':')[1].split(' ')[1].toLowerCase());
+            value = [parseInt(time.split(':')[0]), parseInt(time.split(':')[1])];
+        }
+        else {
+            value = [this.curHour, this.curMinute];
+            this.meridiem = this.curMeridiem;
+        }
+
+        return value;
     } 
 
 
@@ -1332,10 +1543,22 @@ class TimePicker extends MaterialPicker {
         this.$dateInstance = new Date();
 
         this.curHour = this.$dateInstance.getHours();
-        this.curMinute = this.$dateInstance.getMinutes();
+        this.curMeridiem = this.curHour > 12? 'pm': 'am';
 
+        this.curHour = this.curHour === 0? 24: this.curHour; 
+        this.curHour = 
+            this.format === 'true'? 
+            this.curHour: 
+            this.curHour > 12? this.curHour - 12: this.curHour;
+
+        this.curMinute = this.$dateInstance.getMinutes();
+        
         this.hour = this.parseDate(this.curInputData.selectedValue)[0];
         this.minute = this.parseDate(this.curInputData.selectedValue)[1];
+        
+        if(this.format === 'true') {
+            this.distance = this.hour > 12? 70: 100;
+        }
     }
 
 
@@ -1343,30 +1566,216 @@ class TimePicker extends MaterialPicker {
      * 这种组件全局时间为选择的时间
      */
     private setTime() {
-        this.value = `${this.hour}:${this.minute}`;
+        let min: string = this.minute < 10? '0' + this.minute: this.minute.toString();
 
-        this.hourCon.innerHTML = this.hour.toString();
-        this.minuteCon.innerHTML = this.minute.toString();
+        this.value = 
+            this.format === 'true'? 
+            `${this.hour}:${min}`: 
+            `${this.hour}:${min} ${this.meridiem}`;
+
+        this.hourCon.innerHTML = this.hour < 10? '0' + this.hour.toString(): this.hour.toString();
+        this.minuteCon.innerHTML = min;
     }
 
 
     //回到现在 
     private toNow() {
 
+        if(this.format === 'true') {
+            this.distance = this.curHour > 12? 70: 100;
+        }
+        else {
+            this.toggleFocusMeridiem(this[`${this.curMeridiem}Con`]);
+        }
+
+        this.setPointerRotate(this.hourClock, this.hourClock.interval*(this.curHour%12));
+        this.setPointerRotate(this.minuteClock, this.minuteClock.interval*this.curMinute);
+
+        this.setTime();
     }
     
 
     //重新渲染面板
     private renderPanel() {
-        this.meridiemCon.innerHTML = '';
-        this.format !== 'true' && this.meridiemCon.appendChild(this.createMeridiemCon());
+
+        //若不是24小时制，则渲染am，pm
+        if(this.format !== 'true') {
+            this.setStyle(this.meridiemCon, ['display'], ['block']);
+            this.setStyle(this.hourClock.clock24, ['display'], ['none']);
+        }
+        //若是，则渲染12-24小时时钟圆盘
+        else {
+            this.setStyle(this.meridiemCon, ['display'], ['none']);
+            this.setStyle(this.hourClock.clock24, ['display'], ['block']);
+        }
+        
+        this.format !== 'true' && this.toggleFocusMeridiem(this[`${this.meridiem}Con`]);
+        this.switchClock(this.hourClock, this.minuteClock);
+
+        /**
+         * 设置指针信息
+         */
+        this.setClockTheme(this.hourClock, this.themeColor);
+        this.setClockTheme(this.minuteClock, this.themeColor);
+        this.setPointerRotate(this.hourClock, this.hourClock.interval*(this.hour%12));
+        this.setPointerRotate(this.minuteClock, this.minuteClock.interval*this.minute);
+    }
+
+
+    /**
+     * 设置指针外观
+     * @param p 指针元素
+     * @param color 主题色
+     */
+    private setClockTheme(clock: clockInfo, color: string) {
+
+        //清除上一次的选择
+        if(this.hourClock.curEle) {
+            this.setStyle(this.hourClock.curEle, ['color'], ['#666']);
+            this.hourClock.curEle.removeAttribute('data-now');
+        }
+        
+        if(this.minuteClock.curEle) {
+            this.setStyle(this.minuteClock.curEle, ['color'], ['#666']);
+            this.minuteClock.curEle.removeAttribute('data-now');
+        }
+
+        this.hourClock.curEle = this.getElement('div', `hourclock-item-${this.curHour}`);
+        this.minuteClock.curEle = this.curMinute%5 === 0? this.getElement('div', `clock-minuteitem-${this.curMinute}`): null;
+
+        if(this.hourClock.curEle) {
+            this.setStyle(this.hourClock.curEle, ['color'], [color]);
+            this.hourClock.curEle.setAttribute('data-now', 'true');
+        }
+        
+        if(this.minuteClock.curEle) {
+            this.setStyle(this.minuteClock.curEle, ['color'], [color]);
+            this.minuteClock.curEle.setAttribute('data-now', 'true');
+        }
+
+
+        this.setStyle(clock.clockPointer, ['background-color'], [color]);
+        this.setStyle(clock.clockPointerCenter, ['background-color'], [color]);
+        this.setStyle(clock.clockPointerPeak, ['border'], [`4px solid ${color}`]);
+    }
+
+    /**
+     * 设置指针指向
+     * @param p 指针元素
+     * @param angle 主题色
+     */
+    private setPointerRotate(clock: clockInfo, angle: number) {
+
+        if(isNaN(angle)) return;
+
+        //24小时制时钟
+        if(this.format === 'true' && clock.type === 'hour') {
+            if(this.distance < 90) {
+                this.setStyle(clock.clockPointer, ['height', 'top'], ['28%', '22%']);
+                angle = angle + 360;
+            }
+            else {
+                this.setStyle(clock.clockPointer, ['height', 'top'], ['42%', '8%']);
+            } 
+        }
+        else {
+            this.setStyle(clock.clockPointer, ['height', 'top'], ['42%', '8%']);
+        }
+
+        this.setStyle(clock.clockPointer, ['transform'], [`rotateZ(${angle}deg)`]);
+        this.toggleFocus(clock, clock.itemList[angle]);
+
+        this[clock.type] = this.angle2Time(clock, angle);
+    }
+
+
+    /**
+     * 聚焦时钟刻度元素（高亮）
+     * @param ele 元素
+     */
+    private toggleFocus(clock: clockInfo, ele: Element) {
+        clock.curSelectClockItem = ele;
+
+        if(clock.lastSelectClockItem) {
+            this.setStyle(
+                clock.lastSelectClockItem, 
+                ['background-color', 'color'], 
+                ['transparent', clock.lastSelectClockItem.getAttribute('data-now')? this.themeColor: '#666']
+            );
+            clock.lastSelectClockItem.removeAttribute('data-select');
+        }
+
+        if(clock.curSelectClockItem) {
+            this.setStyle(clock.curSelectClockItem, ['background-color', 'color'], [this.themeColor, '#fff']);
+            clock.curSelectClockItem.setAttribute('data-select', 'true');
+
+            clock.lastSelectClockItem = clock.curSelectClockItem;
+        }
+    }
+
+    /**
+     * 切换显示的时钟
+     * @param curClock 当前要显示的时钟
+     * @param lastClock 要隐藏的时钟
+     */
+    private switchClock(curClock: clockInfo, lastClock: clockInfo) {
+        this.setStyle(curClock.viewEle, ['color'], ['rgba(255, 255, 255, 1)']);
+        this.setStyle(curClock.clock, ['visibility', 'opacity'], ['visible', 1]);
+
+        this.setStyle(lastClock.viewEle, ['color'], ['rgba(255, 255, 255, 0.6)']);
+        this.setStyle(lastClock.clock, ['visibility', 'opacity'], ['hidden', 0]);
+    }
+
+
+    /**
+     * 切换显示am/pm
+     */
+    private toggleFocusMeridiem(ele: Element) {
+        this.curMeridiemEle = ele;
+
+        if(this.lastMeridiemEle) {
+            this.setStyle(this.lastMeridiemEle, ['color'], ['rgba(255, 255, 255, 0.6)']);
+        }
+
+        this.setStyle(this.curMeridiemEle, ['color'], ['rgba(255, 255, 255, 1)']);
+
+        this.lastMeridiemEle = this.curMeridiemEle;
+
+        this.meridiem = this.curMeridiemEle.innerHTML.toLowerCase();
     }
 
 
 
     /**
-     * 生命周期--------------------------------------------------------------------------
+     * ----------------生命周期---------------------------------------
      */
+
+    /**
+     * 时钟圆盘时间选择
+     */
+    private clockPointerEvent(clock: clockInfo, fn?: Function) {
+        this.addEvent(clock.clock, 'mousedown', (t, e) => {
+            this.clickFlag = true;
+            let p = this.transformXY(e['clientX'], e['clientY']);
+            this.setPointerRotate(clock, this.XY2angle(p['x'], p['y'], clock.interval));
+            this.setTime();
+        });
+
+        this.addEvent(clock.clock, 'mousemove', (t, e) => {
+            if(this.clickFlag) {
+                let p = this.transformXY(e['clientX'], e['clientY']);
+                this.setPointerRotate(clock, this.XY2angle(p['x'], p['y'], clock.interval));
+                this.setTime();
+            }
+        });
+
+        this.addEvent(clock.clock, 'mouseup', () => {
+            this.clickFlag = false;
+            
+            if(fn && typeof fn === 'function') fn();
+        });
+    } 
+
 
 
     protected init() {
@@ -1385,17 +1794,37 @@ class TimePicker extends MaterialPicker {
         this.minuteCon = this.getElement('div', 'minute');
         this.meridiemCon = this.getElement('div', 'meridiem-con');
 
-        this.hourClock = this.getElement('div', 'hour-clock');
-        this.hourClock24 = this.getElement('div', 'hour-clock-24');
-        this.minuteClock = this.getElement('div', 'minute-clock');
+        this.hourClock.clock = this.getElement('div', 'hour-clock');
+        this.hourClock.clock24 = this.getElement('div', 'hour-clock-24');
+        this.minuteClock.clock = this.getElement('div', 'minute-clock');
 
         this.closeBtn = this.getElement('button', 'btn-close-t');
         this.comfirmBtn = this.getElement('button', 'btn-comfirm-t');
         this.nowBtn = this.getElement('button', 'btn-now-t');
 
-        this.hourClock.appendChild(this.createClock(260, 0, 12, 1));
-        this.format !== 'true' && this.hourClock24.appendChild(this.createClock(190, 12, 24, 1));
+        this.hourClock.viewEle = this.hourCon;
+        this.minuteClock.viewEle = this.minuteCon;
 
+        /**
+         * ----------------------------------------------------
+         */
+
+        this.meridiemCon.appendChild(this.createMeridiemCon());
+
+        //生成时钟圆盘
+        this.hourClock.clock.appendChild(this.createClock(260, 0, 12, 1));
+        this.hourClock.clock24.appendChild(this.createClock(190, 12, 24, 1));
+        this.hourClock.clock.appendChild(this.createPointer(this.hourClock));
+
+        //生成分钟圆盘
+        this.minuteClock.clock.appendChild(this.createClock(260, 0, 60, 5));
+        this.minuteClock.clock.appendChild(this.createPointer(this.minuteClock));
+
+        this.amCon = this.getElement('div', 'am');
+        this.pmCon = this.getElement('div', 'pm');
+
+        this.getClockItemList();
+        
         /**
          * -----------------事件绑定------------------------
          */
@@ -1418,12 +1847,6 @@ class TimePicker extends MaterialPicker {
             this.close();
         });
 
-
-        this.addEvent(this.hourClock, 'click', t => {
-            console.log('455');
-        });
-
-
         //点击取消按钮关闭组件
         this.addEvent(this.closeBtn, 'click', t => {
             this.close();
@@ -1442,6 +1865,35 @@ class TimePicker extends MaterialPicker {
             this.toNow();
         });
 
+        
+        //选择时钟
+        this.addEvent(this.hourCon, 'click', t => {
+            this.switchClock(this.hourClock, this.minuteClock);
+        });
+        this.addEvent(this.minuteCon, 'click', t => {
+            this.switchClock(this.minuteClock, this.hourClock);
+        });
+
+        /**
+         * 选择am/pm
+         */
+        this.addEvent(this.amCon, 'click', t => {
+            this.toggleFocusMeridiem(this.amCon);
+            this.setTime();
+        });
+        this.addEvent(this.pmCon, 'click', t => {
+            this.toggleFocusMeridiem(this.pmCon);
+            this.setTime();
+        });
+
+
+
+        this.addEvent(this.materialPickerContainer, 'click', t => {});
+
+        this.clockPointerEvent(this.hourClock, () => {
+            this.switchClock(this.minuteClock, this.hourClock);
+        });
+        this.clockPointerEvent(this.minuteClock);
     }
 
 

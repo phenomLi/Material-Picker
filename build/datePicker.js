@@ -49,8 +49,12 @@ var MaterialPicker = (function (window) {
         }
         MaterialPicker.prototype.init = function () { };
         MaterialPicker.prototype.close = function () {
+            var _this = this;
             this.setStyle(this.materialPickerContainer, ['transform', 'opacity'], ['translateY(-30%)', 0]);
             this.setStyle(this.wrapper, ['visibility', 'opacity'], ['hidden', 0]);
+            setTimeout(function () {
+                _this.setStyle(_this.wrapper, ['display'], ['none']);
+            }, 200);
             this.curInputData.onClose();
             this.curInputData = {
                 inputEle: null,
@@ -74,6 +78,7 @@ var MaterialPicker = (function (window) {
             }
         };
         MaterialPicker.prototype.setTheme = function (color, type, format) {
+            var _this = this;
             this.type = type || this.$conf['type'];
             this.themeColor = color || this.$conf['themeColor'];
             this.format = format || this.$conf['format'];
@@ -81,8 +86,12 @@ var MaterialPicker = (function (window) {
             this.setStyle(this.closeBtn, ['color'], [this.themeColor]);
             this.setStyle(this.comfirmBtn, ['color'], [this.themeColor]);
             this.setStyle(this.nowBtn, ['color'], [this.themeColor]);
-            this.setStyle(this.materialPickerContainer, ['flexDirection', 'transform', 'opacity'], [this.type === 'portrait' ? 'column' : 'row', 'translateY(0)', '1']);
-            this.setStyle(this.wrapper, ['visibility', 'opacity'], ['visible', 1]);
+            this.setStyle(this.materialPickerContainer, ['flexDirection'], [this.type === 'portrait' ? 'column' : 'row']);
+            this.setStyle(this.wrapper, ['display'], ['block']);
+            setTimeout(function () {
+                _this.setStyle(_this.materialPickerContainer, ['transform', 'opacity'], ['translateY(0)', '1']);
+                _this.setStyle(_this.wrapper, ['visibility', 'opacity'], ['visible', 1]);
+            }, 0);
         };
         MaterialPicker.prototype.addEvent = function (ele, event, fn) {
             var target;
@@ -93,8 +102,7 @@ var MaterialPicker = (function (window) {
                 e = e || window.event;
                 target = e.target || e.srcElement;
                 e.stopPropagation();
-                e.cancelBubble = true;
-                fn(target);
+                fn(target, e);
             });
         };
         MaterialPicker.prototype.getElement = function (tag, ele) {
@@ -499,6 +507,7 @@ var MaterialPicker = (function (window) {
         };
         return DatePicker;
     }(MaterialPicker));
+    ;
     var TimePicker = (function (_super) {
         __extends(TimePicker, _super);
         function TimePicker(conf) {
@@ -506,63 +515,273 @@ var MaterialPicker = (function (window) {
             _this.hourCon = null;
             _this.minuteCon = null;
             _this.meridiemCon = null;
-            _this.hourClock = null;
-            _this.hourClock24 = null;
-            _this.minuteClock = null;
+            _this.amCon = null;
+            _this.pmCon = null;
+            _this.hourClock = {
+                clock: null,
+                clock24: null,
+                clockPointer: null,
+                clockPointerPeak: null,
+                clockPointerCenter: null,
+                type: 'hour',
+                itemList: {},
+                interval: 360 / 12,
+                viewEle: null,
+                curEle: null,
+                curSelectClockItem: null,
+                lastSelectClockItem: null
+            };
+            _this.minuteClock = {
+                clock: null,
+                clockPointer: null,
+                clockPointerPeak: null,
+                clockPointerCenter: null,
+                type: 'minute',
+                itemList: {},
+                interval: 360 / 60,
+                viewEle: null,
+                curEle: null,
+                curSelectClockItem: null,
+                lastSelectClockItem: null
+            };
             _this.curHour = _this.$dateInstance.getHours();
             _this.curMinute = _this.$dateInstance.getMinutes();
+            _this.curMeridiem = _this.curHour > 12 ? 'pm' : 'am';
+            _this.centerX = 260 / 2;
+            _this.centerY = 260 / 2;
+            _this.curClockItem = _this.lastClockItem = null;
+            _this.curMeridiemEle = _this.lastMeridiemEle = null;
             _this.init();
             return _this;
         }
         TimePicker.prototype.createMeridiemCon = function () {
-            var div = document.createElement('div'), template = "\n                <div style=\"font-size: 22px;margin-left: 12px;\">\n                    <div data-ele=\"am\" style=\"margin-bottom: 4px; cursor: pointer;\">AM</div>\n                    <div data-ele=\"pm\" style=\"cursor: pointer;\">PM</div>\n                </div>\n              ";
+            var div = document.createElement('div'), template = "\n                <div style=\"font-size: 22px; margin-left: 12px;\">\n                    <div data-ele=\"am\" style=\"margin-bottom: 4px; cursor: pointer;color: rgba(255, 255, 255, 0.6);\">AM</div>\n                    <div data-ele=\"pm\" style=\"cursor: pointer;color: rgba(255, 255, 255, 0.6);\">PM</div>\n                </div>\n              ";
             div.innerHTML = template;
             return div.children[0];
         };
-        TimePicker.prototype.createPointer = function () {
+        TimePicker.prototype.createPointer = function (clock) {
+            var pointer = document.createElement('div'), center = document.createElement('div'), peak = document.createElement('div');
+            this.setStyle(pointer, ['position', 'width', 'height', 'top', 'left', 'transform-origin'], ['absolute', '4px', '42%', '8%', 'calc(50% - 2px)', 'center bottom']);
+            this.setStyle(center, ['position', 'width', 'height', 'top', 'left', 'border-radius'], ['absolute', '8px', '8px', 'calc(100% - 4px)', '-2px', '50%']);
+            this.setStyle(peak, ['position', 'width', 'height', 'background-color', 'top', 'left', 'border-radius', 'box-sizing'], ['absolute', '16px', '16px', '#FFF', '-8px', '-6px', '50%', 'border-box']);
+            clock.clockPointer = pointer;
+            clock.clockPointerCenter = center;
+            clock.clockPointerPeak = peak;
+            pointer.appendChild(center);
+            pointer.appendChild(peak);
+            return pointer;
         };
         TimePicker.prototype.createClock = function (radius, start, end, step) {
             var div = document.createElement('div'), curAngle = 0, angle = 2 * Math.PI / 12, r = radius / 2 - 20;
             this.setStyle(div, ['position', 'width', 'height', 'border-radius', 'background-color', 'top', 'left'], ['absolute', '100%', '100%', '50%', '#eee', 0, 0]);
-            for (var i = end; i > start; i -= step) {
+            for (var i = 12, j = end; i > 0 && j > start; i--, j -= step) {
                 var clockItem = document.createElement('div'), x = 0, y = 0;
                 curAngle = angle * i;
                 x = r * Math.sin(curAngle);
                 y = -1 * r * Math.cos(curAngle);
-                this.setStyle(clockItem, ['position', 'width', 'height', 'text-align', 'line-height', 'color', 'transform-origin', 'left', 'top', 'font-size', 'border-radius'], ['absolute', '20px', '20px', 'center', '20px', '#666', '50% 50%', 'calc(50% - 10px)', 'calc(50% - 10px)', '18px', '50%']);
+                this.setStyle(clockItem, ['position', 'width', 'height', 'text-align', 'line-height', 'color', 'transform-origin', 'left', 'top', 'font-size', 'border-radius', 'z-index', 'user-select'], ['absolute', '30px', '30px', 'center', '30px', '#666', '50% 50%', 'calc(50% - 15px)', 'calc(50% - 15px)', '16px', '50%', 10, 'none']);
                 this.setStyle(clockItem, ['transform'], ["translate(" + x + "px, " + y + "px)"]);
-                clockItem.innerHTML = i.toString();
+                end !== 60 ?
+                    clockItem.setAttribute('data-ele', "hourclock-item-" + (j === 60 ? 0 : j)) :
+                    clockItem.setAttribute('data-ele', "minuteclock-item-" + (j === 60 ? 0 : j));
+                clockItem.innerHTML = j === 60 ? '00' : j.toString();
                 div.appendChild(clockItem);
             }
             return div;
         };
         TimePicker.prototype.createContainer = function () {
-            var div = document.createElement('div'), template = "\n              <div data-ele=\"wrapper-t\" style=\"visibility: hidden; opacity: 0; box-sizing: border-box; position: absolute; top: 0;left: 0;width: 100%; height: 100vh; transition: all 0.2s ease;\">\n                <div style=\"display: flex;justify-content: center;align-items: center;width: 100%;height: 100%;background-color: rgba(0, 0, 0, 0.5);\">\n                    <div data-ele=\"material-picker-container-t\" style=\"transform: translateY(-30%); opacity: 0;display: flex;box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5); transition: all 0.35s ease;\">\n                        <div data-ele=\"picker-info-container-t\" style=\"padding: 20px; color: #fff;box-sizing: border-box;align-items: stretch; display: flex; justify-content: center; align-items: center;\">\n                            <div style=\"display: flex;font-size: 56px;\">\n                                <div data-ele=\"hour\" style=\"cursor: pointer;\"></div>\n                                <div>:</div>\n                                <div data-ele=\"minute\" style=\"cursor: pointer;\"></div>\n                            </div>\n                            <div data-ele=\"meridiem-con\"></div>\n                        </div>\n\n                        <div data-ele=\"picker-body-container-t\" style=\"display: flex;flex-direction: column;justify-content: space-between;padding: 0 8px 0 8px;box-sizing: border-box;background-color: #fff;align-items: stretch; position: relative;\">\n                            \n                            <div data-ele=\"clock-container\" style=\"padding: 20px 0 20px 0;\">\n                                <div>\n                                    <div data-ele=\"hour-clock\" style=\"width: 260px; height: 260px; display: flex; justify-content: center; align-items: center;position: relative;\">\n                                        <div data-ele=\"hour-clock-24\" style=\"z-index: 10; width: 180px; height: 180px;position: relative;\"></div>\n                                    </div>\n\n                                    <div data-ele=\"minute-clock\" style=\"width: 260px; height: 260px; top: 0; left: 0; position:absolute;visibility: hidden; opacity: 0;\"></div>\n                                </div>\n                            </div>\n\n                            <div style=\"display: flex;justify-content: space-between;align-items: center; padding: 8px 0 8px 0;\">\n                                <button data-ele=\"btn-now-t\" style=\"background-color: transparent;width: 64px;height: 36px;outline: none;border: none;font-size: 14px;cursor: pointer;\">\u4ECA\u5929</button>\n                                <div style=\"display: flex; width: 40%; justify-content: space-between; align-items: center;\">\n                                    <button data-ele=\"btn-close-t\" style=\"background-color: transparent;width: 64px;height: 36px;outline: none;border: none;font-size: 14px;cursor: pointer;\">\u5173\u95ED</button>\n                                    <button data-ele=\"btn-comfirm-t\" style=\"background-color: transparent;width: 64px;height: 36px;outline: none;border: none;font-size: 14px;cursor: pointer;\">\u786E\u5B9A</button>\n                                </div>\n                            </div>\n\n                        </div>\n                    </div>\n                </div>\n            </div>\n              ";
+            var div = document.createElement('div'), template = "\n              <div data-ele=\"wrapper-t\" style=\"visibility: hidden; opacity: 0; box-sizing: border-box; position: absolute; top: 0;left: 0;width: 100%; height: 100vh; transition: all 0.2s ease;\">\n                <div style=\"display: flex;justify-content: center;align-items: center;width: 100%;height: 100%;background-color: rgba(0, 0, 0, 0.5);\">\n                    <div data-ele=\"material-picker-container-t\" style=\"transform: translateY(-30%); opacity: 0;display: flex;box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5); transition: all 0.35s ease;\">\n                        <div data-ele=\"picker-info-container-t\" style=\"padding: 20px; color: #fff;box-sizing: border-box;align-items: stretch; display: flex; justify-content: center; align-items: center;\">\n                            <div style=\"display: flex;font-size: 56px;width: 150px; justify-content: center;\">\n                                <div data-ele=\"hour\" style=\"cursor: pointer;\"></div>\n                                <div style=\"color: rgba(255, 255, 255, 0.6);\">:</div>\n                                <div data-ele=\"minute\" style=\"cursor: pointer;\"></div>\n                            </div>\n                            <div data-ele=\"meridiem-con\"></div>\n                        </div>\n\n                        <div data-ele=\"picker-body-container-t\" style=\"display: flex;flex-direction: column;justify-content: space-between;padding: 0 8px 0 8px;box-sizing: border-box;background-color: #fff;align-items: stretch; position: relative;\">\n                            \n                            <div data-ele=\"clock-container\" style=\"padding: 20px 0 20px 0;\">\n                                <div>\n                                    <div data-ele=\"hour-clock\" style=\"width: 260px; height: 260px; display: flex; justify-content: center; align-items: center;position: relative;visibility: hidden; opacity: 0;transition: all 0.2s ease;\">\n                                        <div data-ele=\"hour-clock-24\" style=\"width: 180px; height: 180px;position: absolute;top:40px; left:40px;\"></div>\n                                    </div>\n\n                                    <div data-ele=\"minute-clock\" style=\"width: 260px; height: 260px; top: 20px; left: 8px; position:absolute;visibility: hidden; opacity: 0;transition: all 0.2s ease;\"></div>\n                                </div>\n                            </div>\n\n                            <div style=\"display: flex;justify-content: space-between;align-items: center; padding: 8px 0 8px 0;\">\n                                <button data-ele=\"btn-now-t\" style=\"background-color: transparent;width: 64px;height: 36px;outline: none;border: none;font-size: 14px;cursor: pointer;\">\u73B0\u5728</button>\n                                <div style=\"display: flex; width: 40%; justify-content: space-between; align-items: center;\">\n                                    <button data-ele=\"btn-close-t\" style=\"background-color: transparent;width: 64px;height: 36px;outline: none;border: none;font-size: 14px;cursor: pointer;\">\u5173\u95ED</button>\n                                    <button data-ele=\"btn-comfirm-t\" style=\"background-color: transparent;width: 64px;height: 36px;outline: none;border: none;font-size: 14px;cursor: pointer;\">\u786E\u5B9A</button>\n                                </div>\n                            </div>\n\n                        </div>\n                    </div>\n                </div>\n            </div>\n              ";
             div.innerHTML = template;
             return div.children[0];
         };
+        TimePicker.prototype.getClockItemList = function () {
+            for (var i = 0; i < 24; i++) {
+                this.hourClock.itemList[i * this.hourClock.interval] = this.getElement('div', "hourclock-item-" + this.angle2Time(this.hourClock, i * this.hourClock.interval, this.hourClock.interval));
+            }
+            for (var i = 0; i < 60; i += 5) {
+                this.minuteClock.itemList[i * this.minuteClock.interval] = this.getElement('div', "minuteclock-item-" + i);
+            }
+        };
+        TimePicker.prototype.angle2Time = function (clock, angle) {
+            if (clock.type === 'hour') {
+                if (angle === 0)
+                    return 12;
+                else if (angle === 360)
+                    return 24;
+                else
+                    return angle / clock.interval;
+            }
+            else {
+                return angle / clock.interval;
+            }
+        };
+        TimePicker.prototype.XY2angle = function (x, y, step) {
+            var n = 0, length = 0, angle = 0;
+            n = (x - this.centerX) > 0 ? 1 : -1;
+            this.distance = Math.sqrt(Math.pow(x - this.centerX, 2) + Math.pow(y - this.centerY, 2));
+            angle = n * 180 / Math.PI * Math.acos((this.centerY - y) / this.distance);
+            angle = angle > 0 ? angle : (360 + angle);
+            return Math.round(angle / step) * step === 360 ? 0 : Math.round(angle / step) * step;
+        };
+        TimePicker.prototype.transformXY = function (x, y) {
+            return {
+                x: Math.floor(x - this.hourClock.clock.getBoundingClientRect().left),
+                y: Math.floor(y - this.hourClock.clock.getBoundingClientRect().top)
+            };
+        };
         TimePicker.prototype.parseDate = function (time) {
-            return time ?
-                [parseInt(time.split(':')[0]), parseInt(time.split(':')[1])] :
-                [this.curHour, this.curMinute];
+            var value = [];
+            if (time) {
+                this.format !== 'true' && (this.meridiem = time.split(':')[1].split(' ')[1].toLowerCase());
+                value = [parseInt(time.split(':')[0]), parseInt(time.split(':')[1])];
+            }
+            else {
+                value = [this.curHour, this.curMinute];
+                this.meridiem = this.curMeridiem;
+            }
+            return value;
         };
         TimePicker.prototype.getTime = function () {
             this.$dateInstance = new Date();
             this.curHour = this.$dateInstance.getHours();
+            this.curMeridiem = this.curHour > 12 ? 'pm' : 'am';
+            this.curHour = this.curHour === 0 ? 24 : this.curHour;
+            this.curHour =
+                this.format === 'true' ?
+                    this.curHour :
+                    this.curHour > 12 ? this.curHour - 12 : this.curHour;
             this.curMinute = this.$dateInstance.getMinutes();
             this.hour = this.parseDate(this.curInputData.selectedValue)[0];
             this.minute = this.parseDate(this.curInputData.selectedValue)[1];
+            if (this.format === 'true') {
+                this.distance = this.hour > 12 ? 70 : 100;
+            }
         };
         TimePicker.prototype.setTime = function () {
-            this.value = this.hour + ":" + this.minute;
-            this.hourCon.innerHTML = this.hour.toString();
-            this.minuteCon.innerHTML = this.minute.toString();
+            var min = this.minute < 10 ? '0' + this.minute : this.minute.toString();
+            this.value =
+                this.format === 'true' ?
+                    this.hour + ":" + min :
+                    this.hour + ":" + min + " " + this.meridiem;
+            this.hourCon.innerHTML = this.hour < 10 ? '0' + this.hour.toString() : this.hour.toString();
+            this.minuteCon.innerHTML = min;
         };
         TimePicker.prototype.toNow = function () {
+            if (this.format === 'true') {
+                this.distance = this.curHour > 12 ? 70 : 100;
+            }
+            else {
+                this.toggleFocusMeridiem(this[this.curMeridiem + "Con"]);
+            }
+            this.setPointerRotate(this.hourClock, this.hourClock.interval * (this.curHour % 12));
+            this.setPointerRotate(this.minuteClock, this.minuteClock.interval * this.curMinute);
+            this.setTime();
         };
         TimePicker.prototype.renderPanel = function () {
-            this.meridiemCon.innerHTML = '';
-            this.format !== 'true' && this.meridiemCon.appendChild(this.createMeridiemCon());
+            if (this.format !== 'true') {
+                this.setStyle(this.meridiemCon, ['display'], ['block']);
+                this.setStyle(this.hourClock.clock24, ['display'], ['none']);
+            }
+            else {
+                this.setStyle(this.meridiemCon, ['display'], ['none']);
+                this.setStyle(this.hourClock.clock24, ['display'], ['block']);
+            }
+            this.format !== 'true' && this.toggleFocusMeridiem(this[this.meridiem + "Con"]);
+            this.switchClock(this.hourClock, this.minuteClock);
+            this.setClockTheme(this.hourClock, this.themeColor);
+            this.setClockTheme(this.minuteClock, this.themeColor);
+            this.setPointerRotate(this.hourClock, this.hourClock.interval * (this.hour % 12));
+            this.setPointerRotate(this.minuteClock, this.minuteClock.interval * this.minute);
+        };
+        TimePicker.prototype.setClockTheme = function (clock, color) {
+            if (this.hourClock.curEle) {
+                this.setStyle(this.hourClock.curEle, ['color'], ['#666']);
+                this.hourClock.curEle.removeAttribute('data-now');
+            }
+            if (this.minuteClock.curEle) {
+                this.setStyle(this.minuteClock.curEle, ['color'], ['#666']);
+                this.minuteClock.curEle.removeAttribute('data-now');
+            }
+            this.hourClock.curEle = this.getElement('div', "hourclock-item-" + this.curHour);
+            this.minuteClock.curEle = this.curMinute % 5 === 0 ? this.getElement('div', "clock-minuteitem-" + this.curMinute) : null;
+            if (this.hourClock.curEle) {
+                this.setStyle(this.hourClock.curEle, ['color'], [color]);
+                this.hourClock.curEle.setAttribute('data-now', 'true');
+            }
+            if (this.minuteClock.curEle) {
+                this.setStyle(this.minuteClock.curEle, ['color'], [color]);
+                this.minuteClock.curEle.setAttribute('data-now', 'true');
+            }
+            this.setStyle(clock.clockPointer, ['background-color'], [color]);
+            this.setStyle(clock.clockPointerCenter, ['background-color'], [color]);
+            this.setStyle(clock.clockPointerPeak, ['border'], ["4px solid " + color]);
+        };
+        TimePicker.prototype.setPointerRotate = function (clock, angle) {
+            if (isNaN(angle))
+                return;
+            if (this.format === 'true' && clock.type === 'hour') {
+                if (this.distance < 90) {
+                    this.setStyle(clock.clockPointer, ['height', 'top'], ['28%', '22%']);
+                    angle = angle + 360;
+                }
+                else {
+                    this.setStyle(clock.clockPointer, ['height', 'top'], ['42%', '8%']);
+                }
+            }
+            else {
+                this.setStyle(clock.clockPointer, ['height', 'top'], ['42%', '8%']);
+            }
+            this.setStyle(clock.clockPointer, ['transform'], ["rotateZ(" + angle + "deg)"]);
+            this.toggleFocus(clock, clock.itemList[angle]);
+            this[clock.type] = this.angle2Time(clock, angle);
+        };
+        TimePicker.prototype.toggleFocus = function (clock, ele) {
+            clock.curSelectClockItem = ele;
+            if (clock.lastSelectClockItem) {
+                this.setStyle(clock.lastSelectClockItem, ['background-color', 'color'], ['transparent', clock.lastSelectClockItem.getAttribute('data-now') ? this.themeColor : '#666']);
+                clock.lastSelectClockItem.removeAttribute('data-select');
+            }
+            if (clock.curSelectClockItem) {
+                this.setStyle(clock.curSelectClockItem, ['background-color', 'color'], [this.themeColor, '#fff']);
+                clock.curSelectClockItem.setAttribute('data-select', 'true');
+                clock.lastSelectClockItem = clock.curSelectClockItem;
+            }
+        };
+        TimePicker.prototype.switchClock = function (curClock, lastClock) {
+            this.setStyle(curClock.viewEle, ['color'], ['rgba(255, 255, 255, 1)']);
+            this.setStyle(curClock.clock, ['visibility', 'opacity'], ['visible', 1]);
+            this.setStyle(lastClock.viewEle, ['color'], ['rgba(255, 255, 255, 0.6)']);
+            this.setStyle(lastClock.clock, ['visibility', 'opacity'], ['hidden', 0]);
+        };
+        TimePicker.prototype.toggleFocusMeridiem = function (ele) {
+            this.curMeridiemEle = ele;
+            if (this.lastMeridiemEle) {
+                this.setStyle(this.lastMeridiemEle, ['color'], ['rgba(255, 255, 255, 0.6)']);
+            }
+            this.setStyle(this.curMeridiemEle, ['color'], ['rgba(255, 255, 255, 1)']);
+            this.lastMeridiemEle = this.curMeridiemEle;
+            this.meridiem = this.curMeridiemEle.innerHTML.toLowerCase();
+        };
+        TimePicker.prototype.clockPointerEvent = function (clock, fn) {
+            var _this = this;
+            this.addEvent(clock.clock, 'mousedown', function (t, e) {
+                _this.clickFlag = true;
+                var p = _this.transformXY(e['clientX'], e['clientY']);
+                _this.setPointerRotate(clock, _this.XY2angle(p['x'], p['y'], clock.interval));
+                _this.setTime();
+            });
+            this.addEvent(clock.clock, 'mousemove', function (t, e) {
+                if (_this.clickFlag) {
+                    var p = _this.transformXY(e['clientX'], e['clientY']);
+                    _this.setPointerRotate(clock, _this.XY2angle(p['x'], p['y'], clock.interval));
+                    _this.setTime();
+                }
+            });
+            this.addEvent(clock.clock, 'mouseup', function () {
+                _this.clickFlag = false;
+                if (fn && typeof fn === 'function')
+                    fn();
+            });
         };
         TimePicker.prototype.init = function () {
             var _this = this;
@@ -573,14 +792,23 @@ var MaterialPicker = (function (window) {
             this.hourCon = this.getElement('div', 'hour');
             this.minuteCon = this.getElement('div', 'minute');
             this.meridiemCon = this.getElement('div', 'meridiem-con');
-            this.hourClock = this.getElement('div', 'hour-clock');
-            this.hourClock24 = this.getElement('div', 'hour-clock-24');
-            this.minuteClock = this.getElement('div', 'minute-clock');
+            this.hourClock.clock = this.getElement('div', 'hour-clock');
+            this.hourClock.clock24 = this.getElement('div', 'hour-clock-24');
+            this.minuteClock.clock = this.getElement('div', 'minute-clock');
             this.closeBtn = this.getElement('button', 'btn-close-t');
             this.comfirmBtn = this.getElement('button', 'btn-comfirm-t');
             this.nowBtn = this.getElement('button', 'btn-now-t');
-            this.hourClock.appendChild(this.createClock(260, 0, 12, 1));
-            this.format !== 'true' && this.hourClock24.appendChild(this.createClock(190, 12, 24, 1));
+            this.hourClock.viewEle = this.hourCon;
+            this.minuteClock.viewEle = this.minuteCon;
+            this.meridiemCon.appendChild(this.createMeridiemCon());
+            this.hourClock.clock.appendChild(this.createClock(260, 0, 12, 1));
+            this.hourClock.clock24.appendChild(this.createClock(190, 12, 24, 1));
+            this.hourClock.clock.appendChild(this.createPointer(this.hourClock));
+            this.minuteClock.clock.appendChild(this.createClock(260, 0, 60, 5));
+            this.minuteClock.clock.appendChild(this.createPointer(this.minuteClock));
+            this.amCon = this.getElement('div', 'am');
+            this.pmCon = this.getElement('div', 'pm');
+            this.getClockItemList();
             this.inputList.map(function (ele) {
                 _this.addEvent(ele, 'focus', function (t) {
                     _this.curInputData = _this.inputDataList[parseInt(ele.getAttribute('data-component-index'))];
@@ -589,9 +817,6 @@ var MaterialPicker = (function (window) {
             });
             this.addEvent(this.wrapper, 'click', function (t) {
                 _this.close();
-            });
-            this.addEvent(this.hourClock, 'click', function (t) {
-                console.log('455');
             });
             this.addEvent(this.closeBtn, 'click', function (t) {
                 _this.close();
@@ -603,6 +828,25 @@ var MaterialPicker = (function (window) {
             this.addEvent(this.nowBtn, 'click', function (t) {
                 _this.toNow();
             });
+            this.addEvent(this.hourCon, 'click', function (t) {
+                _this.switchClock(_this.hourClock, _this.minuteClock);
+            });
+            this.addEvent(this.minuteCon, 'click', function (t) {
+                _this.switchClock(_this.minuteClock, _this.hourClock);
+            });
+            this.addEvent(this.amCon, 'click', function (t) {
+                _this.toggleFocusMeridiem(_this.amCon);
+                _this.setTime();
+            });
+            this.addEvent(this.pmCon, 'click', function (t) {
+                _this.toggleFocusMeridiem(_this.pmCon);
+                _this.setTime();
+            });
+            this.addEvent(this.materialPickerContainer, 'click', function (t) { });
+            this.clockPointerEvent(this.hourClock, function () {
+                _this.switchClock(_this.minuteClock, _this.hourClock);
+            });
+            this.clockPointerEvent(this.minuteClock);
         };
         TimePicker.prototype.show = function (themeColor, type, format) {
             this.setTheme(themeColor, type, format);
