@@ -8,7 +8,7 @@ var __extends = (this && this.__extends) || (function () {
         d.prototype = b === null ? Object.create(b) : (__.prototype = b.prototype, new __());
     };
 })();
-var MaterialPicker = (function (window) {
+var _a = (function (window) {
     var MaterialPicker = (function () {
         function MaterialPicker(className, conf) {
             var _this = this;
@@ -485,6 +485,7 @@ var MaterialPicker = (function (window) {
                 _this.addEvent(ele, 'focus', function (t) {
                     _this.curInputData = _this.inputDataList[parseInt(ele.getAttribute('data-component-index'))];
                     _this.show(_this.curInputData.themeColor, _this.curInputData.type);
+                    ele.setAttribute('readonly', 'readonly');
                 });
             });
             this.addEvent(this.wrapper, 'click', function (t) {
@@ -837,6 +838,7 @@ var MaterialPicker = (function (window) {
                 _this.addEvent(ele, 'focus', function (t) {
                     _this.curInputData = _this.inputDataList[parseInt(ele.getAttribute('data-component-index'))];
                     _this.show(_this.curInputData.themeColor, _this.curInputData.type, _this.curInputData.format);
+                    ele.setAttribute('readonly', 'readonly');
                 });
             });
             this.addEvent(this.wrapper, 'click', function (t) {
@@ -880,8 +882,14 @@ var MaterialPicker = (function (window) {
         };
         return TimePicker;
     }(MaterialPicker));
+    if (typeof module !== "undefined" && module !== null) {
+        module.exports = {
+            DatePicker: DatePicker,
+            TimePicker: TimePicker
+        };
+    }
     return {
         DatePicker: DatePicker,
         TimePicker: TimePicker
     };
-})(window);
+})(window), DatePicker = _a.DatePicker, TimePicker = _a.TimePicker;

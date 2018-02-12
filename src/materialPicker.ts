@@ -1,6 +1,6 @@
 
 
-const MaterialPicker = (function(window) {
+const {DatePicker, TimePicker} = (function(window) {
 
 
 interface inputData {
@@ -143,7 +143,7 @@ class MaterialPicker {
     /**
      * 确认选择
      */
-    protected comfirm(fn?: Function): void {
+    public comfirm(fn?: Function): void {
         if(this.curInputData.inputEle) {
             this.curInputData.inputEle['value'] = this.curInputData.selectedValue = this.value;
             this.curInputData.onSelect(this.curInputData.selectedValue);
@@ -301,12 +301,6 @@ class MaterialPicker {
     }
 
 }
-
-
-
-
-
-
 
 
 
@@ -1052,6 +1046,8 @@ class DatePicker extends MaterialPicker {
 
                 //显示组件
                 this.show(this.curInputData.themeColor, this.curInputData.type);
+
+                ele.setAttribute('readonly', 'readonly');
             });
 
         });
@@ -1151,19 +1147,6 @@ class DatePicker extends MaterialPicker {
         this.curInputData.onShow();
     }
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
@@ -1871,6 +1854,8 @@ class TimePicker extends MaterialPicker {
 
                 //显示组件
                 this.show(this.curInputData.themeColor, this.curInputData.type, this.curInputData.format);
+
+                ele.setAttribute('readonly', 'readonly');
             });
 
         });
@@ -1954,11 +1939,19 @@ class TimePicker extends MaterialPicker {
 }
 
 
+//CMD
+if(typeof module !== "undefined" && module !== null) {
+    module.exports = {
+        DatePicker,
+        TimePicker
+    };
+}
+
+
 return {
     DatePicker,
     TimePicker
 };
-
 
 })(window);
 
