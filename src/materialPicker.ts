@@ -8,9 +8,17 @@ const {DatePicker, TimePicker, MobileGesture} = (function(window) {
 class MobileGesture {
     constructor() {}
 
-    addEvent(ele: Element, event: String, fn: Function) {
+    addEvent(ele: Element | Node, event: String, fn: Function) {
         if(event === 'tap') {
             this.tap(ele, fn);
+        }
+
+        if(event === 'swipeleft') {
+            this.swipe(ele, 0, fn);
+        }
+
+        if(event === 'swiperight') {
+            this.swipe(ele, 1, fn);
         }
     }
 
@@ -19,12 +27,13 @@ class MobileGesture {
      * @param <Element> DOM元素，触摸目标元素
      * @param fn <Function> 回调函数
      */
-    tap(ele: Element, fn: Function) {
+    tap(ele: Element | Node, fn: Function) {
         let startX: number = 0, startY: number = 0, 
             x: number = 0, y: number = 0, 
             touchstartFlag: boolean = false;
-
+    
         ele.addEventListener('touchstart', e => {
+
             startX = e['touches'][0].pageX;
             startY = e['touches'][0].pageY;
 
@@ -32,6 +41,7 @@ class MobileGesture {
         }, false);
 
         ele.addEventListener('touchmove', e => {
+
             if(touchstartFlag) {
                 x = e['touches'][0].pageX;
                 y = e['touches'][0].pageY;
@@ -39,6 +49,9 @@ class MobileGesture {
         }, false);
 
         ele.addEventListener('touchend', e => {
+
+            e.stopPropagation();
+
             if(touchstartFlag && x === 0 && y === 0) {
                 fn(e.target, startX, startY);
             }
@@ -56,8 +69,54 @@ class MobileGesture {
      * @param dir <number> 滑动方向
      * @param fn <Function> 回调函数
      */
-    swipe(ele: Element, dir: number, fn: Function) {
+    swipe(ele: Element | Node, dir: number, fn: Function) {
+        let startX: number = 0, startY: number = 0, 
+            x: number = 0, y: number = 0, 
+            endX: number = 0, endY: number = 0,
+            touchstartFlag: boolean = false,
+            minValue: number = 20;
 
+        ele.addEventListener('touchstart', e => {
+            startX = e['touches'][0].pageX;
+            startY = e['touches'][0].pageY;
+
+            x = startX;
+            y = startY;
+
+            touchstartFlag = true;
+        }, false);    
+
+        ele.addEventListener('touchmove', e => {
+            if(touchstartFlag) {
+                x = e['touches'][0].pageX;
+                y = e['touches'][0].pageY;
+            }
+        }, false);  
+
+        ele.addEventListener('touchend', e => {
+
+            e.stopPropagation();
+
+            endX = Math.abs(startX - (startX - x));
+            endY = Math.abs(startY - y);
+
+            if(touchstartFlag && endX > endY) {
+                if(dir === 0 && startX - x > minValue) {
+                    fn(e.target, startX, startY);
+                }
+    
+                if(dir === 1 && x - startX > minValue) {
+                    fn(e.target, startX, startY);
+                }
+            }
+
+            touchstartFlag = false;
+            startX = 0;
+            startY = 0;
+            x = 0;
+            y = 0;
+
+        }, false);  
     }
 }
 
@@ -145,7 +204,12 @@ class MaterialPicker {
      */
     protected $methods: object = {};
 
+
+    protected mobileGesture: MobileGesture;
+
     constructor(className: string, conf?: object) {
+
+        this.mobileGesture = new MobileGesture();
         this.$dateInstance = new Date();
 
         //默认配置
@@ -242,9 +306,9 @@ class MaterialPicker {
             x: number = 0,
             y: number = 0;
 
-        //若是点击，再为移动端绑定touch事件
+        //若是点击，再为移动端绑定tap事件
         if(event === 'click') {
-            this.addEvent(ele, 'touchend', fn);
+            this.mobileGesture.addEvent(ele, 'tap', fn);
         }
 
         if(event === 'mousedown') {
@@ -257,6 +321,16 @@ class MaterialPicker {
 
         if(event === 'mouseup') {
             this.addEvent(ele, 'touchend', fn);
+        }
+
+        if(event === 'swipeleft') {
+            this.mobileGesture.swipe(ele, 0, fn);
+            return;
+        }
+
+        if(event === 'swiperight') {
+            this.mobileGesture.swipe(ele, 1, fn);
+            return;
         }
 
         ele.addEventListener(event, e => {
@@ -676,7 +750,7 @@ class DatePicker extends MaterialPicker {
         let startDay: number = this.date2weekday(year, month, 1),
             endDay: number = this.monthDaysCount(month, year),
             translateX: string = '',
-            style = 'display: flex; align-items: center; justify-content: center; width: 40px; height: 40px; font-size: 12px;border-radius: 20px;cursor: pointer;user-select: none;-ms-user-select: none;',
+            style = 'display: flex; align-items: center; justify-content: center; width: 40px; height: 40px; font-size: 12px;border-radius: 20px;cursor: pointer;user-select: none;-ms-user-select: none;-webkit-tap-highlight-color:transparent;',
             day: number = 0,
             row = Math.ceil((startDay + endDay)/7),
             calendarItem = document.createElement('div');
@@ -736,7 +810,7 @@ class DatePicker extends MaterialPicker {
     private createContainer(): Element {
         const div = document.createElement('div'),
               template = `
-                <div data-ele="wrapper-d" style="box-sizing: border-box; position: absolute; top: 0;left: 0;width: 100%; height: 100vh; visibility: hidden; opacity: 0; transition: all 0.2s ease;">
+                <div data-ele="wrapper-d" style="box-sizing: border-box; position: absolute; top: 0;left: 0;width: 100%; height: 100vh; visibility: hidden; opacity: 0; transition: all 0.2s ease;display: none;">
                     <div style="display: flex;justify-content: center;align-items: center;width: 100%;height: 100%;background: rgba(0, 0, 0, 0.5);">
                         <div data-ele="material-picker-container-d" style="display: flex;box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5); transition: all 0.35s ease; transform: translateY(-30%); opacity: 0;">
                             
@@ -767,7 +841,7 @@ class DatePicker extends MaterialPicker {
                             <div data-ele="picker-body-container-d" style="display: flex;flex-direction: column;justify-content: space-between;padding: 0 8px 0 8px;box-sizing: border-box;background: #fff;align-items: stretch; position: relative;">
                                 <div style="display: flex;justify-content: space-around;align-items: center;font-size: 14px;font-weight: 900;height: 48px;color: rgba(0, 0, 0, 0.7);">
                                     
-                                    <button data-ele="btn-pm" style="outline: none;border: none;cursor: pointer; background: transparent;">
+                                    <button data-ele="btn-pm" style="-webkit-tap-highlight-color:transparent;outline: none;border: none;cursor: pointer; background: transparent;">
                                         <svg viewBox="0 0 24 24" style="display: inline-block; color: rgba(0, 0, 0, 0.87); fill: currentcolor; height: 24px; width: 24px; -ms-user-select: none;user-select: none; transition: all 450ms cubic-bezier(0.23, 1, 0.32, 1) 0ms;">
                                             <path d="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z"></path>
                                         </svg>
@@ -775,7 +849,7 @@ class DatePicker extends MaterialPicker {
 
                                     <div data-ele="month-year-body" style="overflow: hidden; position: relative; width: 140px; height: 28px;"></div>
 
-                                    <button data-ele="btn-nm" style="outline: none;border: none;cursor: pointer;background: transparent;">
+                                    <button data-ele="btn-nm" style="-webkit-tap-highlight-color:transparent;outline: none;border: none;cursor: pointer;background: transparent;">
                                         <svg viewBox="0 0 24 24" style="display: inline-block; color: rgba(0, 0, 0, 0.87); fill: currentcolor; height: 24px; width: 24px;-ms-user-select: none; user-select: none; transition: all 450ms cubic-bezier(0.23, 1, 0.32, 1) 0ms;">
                                             <path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"></path>
                                         </svg>
@@ -798,10 +872,10 @@ class DatePicker extends MaterialPicker {
                                 </div>
                 
                                 <div style="display: flex;justify-content: space-between;align-items: center; padding: 8px 0 8px 0;">
-                                    <button data-ele="btn-now-d" style="background: transparent;width: 64px;height: 36px;outline: none;border: none;font-size: 14px;cursor: pointer;">今天</button>
+                                    <button data-ele="btn-now-d" style="-webkit-tap-highlight-color:transparent;background: transparent;width: 64px;height: 36px;outline: none;border: none;font-size: 14px;cursor: pointer;">今天</button>
                                     <div style="display: flex; width: 40%; justify-content: space-between; align-items: center;">
-                                        <button data-ele="btn-close-d" style="background: transparent;width: 64px;height: 36px;outline: none;border: none;font-size: 14px;cursor: pointer;">关闭</button>
-                                        <button data-ele="btn-comfirm-d" style="background: transparent;width: 64px;height: 36px;outline: none;border: none;font-size: 14px;cursor: pointer;">确定</button>
+                                        <button data-ele="btn-close-d" style="-webkit-tap-highlight-color:transparent;background: transparent;width: 64px;height: 36px;outline: none;border: none;font-size: 14px;cursor: pointer;">关闭</button>
+                                        <button data-ele="btn-comfirm-d" style="-webkit-tap-highlight-color:transparent;background: transparent;width: 64px;height: 36px;outline: none;border: none;font-size: 14px;cursor: pointer;">确定</button>
                                     </div>
                                 </div>
 
@@ -1209,6 +1283,18 @@ class DatePicker extends MaterialPicker {
         });
 
         /**
+         * 移动端支持滑动切换
+         */
+        this.addEvent(this.calendarBody, 'swipeleft', t => {
+            this.nmBtn['click']();
+        });
+
+        this.addEvent(this.calendarBody, 'swiperight', t => {
+            this.pmBtn['click']();
+        });
+
+
+        /**
          * 点击年份显示年份选择列表
          */
 
@@ -1437,8 +1523,8 @@ class TimePicker extends MaterialPicker {
         const div = document.createElement('div'),
               template = `
                 <div style="font-size: 22px; margin-left: 12px;">
-                    <div data-ele="am" style="margin-bottom: 4px; cursor: pointer;color: rgba(255, 255, 255, 0.6);">AM</div>
-                    <div data-ele="pm" style="cursor: pointer;color: rgba(255, 255, 255, 0.6);">PM</div>
+                    <div data-ele="am" style="-webkit-tap-highlight-color:transparent;margin-bottom: 4px; cursor: pointer;color: rgba(255, 255, 255, 0.6);">AM</div>
+                    <div data-ele="pm" style="-webkit-tap-highlight-color:transparent;cursor: pointer;color: rgba(255, 255, 255, 0.6);">PM</div>
                 </div>
               `;
         
@@ -1536,7 +1622,7 @@ class TimePicker extends MaterialPicker {
     private createContainer(): Element {
         const div = document.createElement('div'),
               template = `
-              <div data-ele="wrapper-t" style="visibility: hidden; opacity: 0; box-sizing: border-box; position: absolute; top: 0;left: 0;width: 100%; height: 100vh; transition: all 0.2s ease;">
+              <div data-ele="wrapper-t" style="display: none;visibility: hidden; opacity: 0; box-sizing: border-box; position: absolute; top: 0;left: 0;width: 100%; height: 100vh; transition: all 0.2s ease;">
                 <div style="display: flex;justify-content: center;align-items: center;width: 100%;height: 100%;background: rgba(0, 0, 0, 0.5);">
                     <div data-ele="material-picker-container-t" style="transform: translateY(-30%); opacity: 0;display: flex;box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5); transition: all 0.35s ease;">
                         <div data-ele="picker-info-container-t" style="padding: 20px; color: #fff;box-sizing: border-box;align-items: stretch; display: flex; justify-content: center; align-items: center;">
@@ -1563,8 +1649,8 @@ class TimePicker extends MaterialPicker {
                             <div style="display: flex;justify-content: space-between;align-items: center; padding: 8px 0 8px 0;">
                                 <button data-ele="btn-now-t" style="background: transparent;width: 64px;height: 36px;outline: none;border: none;font-size: 14px;cursor: pointer;">现在</button>
                                 <div style="display: flex; width: 40%; justify-content: space-between; align-items: center;">
-                                    <button data-ele="btn-close-t" style="background: transparent;width: 64px;height: 36px;outline: none;border: none;font-size: 14px;cursor: pointer;">关闭</button>
-                                    <button data-ele="btn-comfirm-t" style="background: transparent;width: 64px;height: 36px;outline: none;border: none;font-size: 14px;cursor: pointer;">确定</button>
+                                    <button data-ele="btn-close-t" style="-webkit-tap-highlight-color:transparent;background: transparent;width: 64px;height: 36px;outline: none;border: none;font-size: 14px;cursor: pointer;">关闭</button>
+                                    <button data-ele="btn-comfirm-t" style="-webkit-tap-highlight-color:transparent;;background: transparent;width: 64px;height: 36px;outline: none;border: none;font-size: 14px;cursor: pointer;">确定</button>
                                 </div>
                             </div>
 
