@@ -1,6 +1,6 @@
 
 
-const {DatePicker, TimePicker, MobileGesture} = (function(window) {
+const {DatePicker, TimePicker} = (function(window) {
 
 /**
  * 移动端手势
@@ -750,7 +750,7 @@ class DatePicker extends MaterialPicker {
         let startDay: number = this.date2weekday(year, month, 1),
             endDay: number = this.monthDaysCount(month, year),
             translateX: string = '',
-            style = 'display: flex; align-items: center; justify-content: center; width: 40px; height: 40px; font-size: 12px;border-radius: 20px;cursor: pointer;user-select: none;-ms-user-select: none;-webkit-tap-highlight-color:transparent;',
+            style = 'display: flex; align-items: center; justify-content: center; width: 40px; height: 40px; font-size: 12px;border-radius: 20px;cursor: pointer;-webkit-user-select:none;-moz-user-select:none;user-select: none;-ms-user-select: none;-webkit-tap-highlight-color:transparent;',
             day: number = 0,
             row = Math.ceil((startDay + endDay)/7),
             calendarItem = document.createElement('div');
@@ -812,7 +812,7 @@ class DatePicker extends MaterialPicker {
               template = `
                 <div data-ele="wrapper-d" style="box-sizing: border-box; position: absolute; top: 0;left: 0;width: 100%; height: 100vh; visibility: hidden; opacity: 0; transition: all 0.2s ease;display: none;">
                     <div style="display: flex;justify-content: center;align-items: center;width: 100%;height: 100%;background: rgba(0, 0, 0, 0.5);">
-                        <div data-ele="material-picker-container-d" style="display: flex;box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5); transition: all 0.35s ease; transform: translateY(-30%); opacity: 0;">
+                        <div data-ele="material-picker-container-d" style="-webkit-tap-highlight-color: rgba(0,0,0,0);display: flex;box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5); transition: all 0.35s ease; transform: translateY(-30%); opacity: 0;">
                             
                             <div data-ele="picker-info-container-d">
 
@@ -879,7 +879,7 @@ class DatePicker extends MaterialPicker {
                                     </div>
                                 </div>
 
-                                <div data-ele="year-list-con" style="position: absolute; width: 100%; height: 100%; visibility: hidden; background: #fff; transition: all 0.15s ease; left: 0; top: 0; overflow: auto;">
+                                <div data-ele="year-list-con" style="position: absolute; width: 100%; height: 100%; visibility: hidden; background: #fff; transition: all 0.15s ease; left: 0; top: 0; overflow: auto;-webkit-overflow-scrolling: touch;">
 
                                 </div>
                             </div>
@@ -1230,6 +1230,7 @@ class DatePicker extends MaterialPicker {
 
         //点击input显示组件
         this.inputList.map(ele => {
+
             this.addEvent(ele, 'focus', t => {
 
                 //将this.curInputData设置为当前选中的input
@@ -1238,7 +1239,7 @@ class DatePicker extends MaterialPicker {
                 //显示组件
                 this.show(this.curInputData.themeColor, this.curInputData.type, this.curInputData.simplify);
 
-                ele.setAttribute('readonly', 'readonly');
+                t.blur();
             });
 
         });
@@ -1592,8 +1593,8 @@ class TimePicker extends MaterialPicker {
                 y = 0;
 
             curAngle = angle*i;
-            x = r*Math.sin(curAngle);
-            y = -1*r*Math.cos(curAngle);
+            x = Math.floor(r*Math.sin(curAngle));
+            y = Math.floor(-1*r*Math.cos(curAngle));
 
             this.setStyle(clockItem, 
                 ['position', 'width', 'height', 'text-align', 'line-height', 'color', 'transform-origin', 'left', 'top', 'font-size', 'border-radius', 'z-index', 'user-select', '-ms-user-select'],
@@ -1624,7 +1625,7 @@ class TimePicker extends MaterialPicker {
               template = `
               <div data-ele="wrapper-t" style="display: none;visibility: hidden; opacity: 0; box-sizing: border-box; position: absolute; top: 0;left: 0;width: 100%; height: 100vh; transition: all 0.2s ease;">
                 <div style="display: flex;justify-content: center;align-items: center;width: 100%;height: 100%;background: rgba(0, 0, 0, 0.5);">
-                    <div data-ele="material-picker-container-t" style="transform: translateY(-30%); opacity: 0;display: flex;box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5); transition: all 0.35s ease;">
+                    <div data-ele="material-picker-container-t" style="-webkit-tap-highlight-color: rgba(0,0,0,0);transform: translateY(-30%); opacity: 0;display: flex;box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5); transition: all 0.35s ease;">
                         <div data-ele="picker-info-container-t" style="padding: 20px; color: #fff;box-sizing: border-box;align-items: stretch; display: flex; justify-content: center; align-items: center;">
                             <div style="display: flex;font-size: 56px;width: 150px; justify-content: center;">
                                 <div data-ele="hour" style="cursor: pointer;"></div>
@@ -1634,19 +1635,19 @@ class TimePicker extends MaterialPicker {
                             <div data-ele="meridiem-con"></div>
                         </div>
 
-                        <div data-ele="picker-body-container-t" style="display: flex;flex-direction: column;justify-content: space-between;padding: 0 8px 0 8px;box-sizing: border-box;background: #fff;align-items: stretch; position: relative;">
+                        <div data-ele="picker-body-container-t" style="padding: 0 8px 0 8px;position: relative; display: flex;flex-direction: column;justify-content: space-between;box-sizing: border-box;background: #fff;align-items: center;">
                             
                             <div data-ele="clock-container" style="padding: 20px 0 20px 0;">
                                 <div>
-                                    <div data-ele="hour-clock" style="width: 260px; height: 260px; display: flex; justify-content: center; align-items: center;position: relative;visibility: hidden; opacity: 0;transition: all 0.2s ease;">
-                                        <div data-ele="hour-clock-24" style="width: 180px; height: 180px;position: absolute;top:40px; left:40px;"></div>
+                                    <div data-ele="hour-clock" style="width: 274px; height: 274px; display: flex; justify-content: center; align-items: center;position: relative;visibility: hidden; opacity: 0;transition: all 0.2s ease;">
+                                        <div data-ele="hour-clock-24" style="width: 184px; height: 184px;position: absolute;top:45px; left:45px;"></div>
                                     </div>
 
-                                    <div data-ele="minute-clock" style="width: 260px; height: 260px; top: 20px; left: 8px; position:absolute;visibility: hidden; opacity: 0;transition: all 0.2s ease;"></div>
+                                    <div data-ele="minute-clock" style="width: 274px; height: 274px; top: 20px; left: 11px; position:absolute;visibility: hidden; opacity: 0;transition: all 0.2s ease;"></div>
                                 </div>
                             </div>
 
-                            <div style="display: flex;justify-content: space-between;align-items: center; padding: 8px 0 8px 0;">
+                            <div style="width: 280px;display: flex;justify-content: space-between;align-items: center; padding: 8px 0 8px 0;">
                                 <button data-ele="btn-now-t" style="background: transparent;width: 64px;height: 36px;outline: none;border: none;font-size: 14px;cursor: pointer;">现在</button>
                                 <div style="display: flex; width: 40%; justify-content: space-between; align-items: center;">
                                     <button data-ele="btn-close-t" style="-webkit-tap-highlight-color:transparent;background: transparent;width: 64px;height: 36px;outline: none;border: none;font-size: 14px;cursor: pointer;">关闭</button>
@@ -2045,12 +2046,12 @@ class TimePicker extends MaterialPicker {
         this.meridiemCon.appendChild(this.createMeridiemCon());
 
         //生成时钟圆盘
-        this.hourClock.clock.appendChild(this.createClock(260, 0, 12, 1));
-        this.hourClock.clock24.appendChild(this.createClock(190, 12, 24, 1));
+        this.hourClock.clock.appendChild(this.createClock(274, 0, 12, 1));
+        this.hourClock.clock24.appendChild(this.createClock(194, 12, 24, 1));
         this.hourClock.clock.appendChild(this.createPointer(this.hourClock));
 
         //生成分钟圆盘
-        this.minuteClock.clock.appendChild(this.createClock(260, 0, 60, 5));
+        this.minuteClock.clock.appendChild(this.createClock(274, 0, 60, 5));
         this.minuteClock.clock.appendChild(this.createPointer(this.minuteClock));
 
         this.amCon = this.getElement('div', 'am');
@@ -2071,7 +2072,7 @@ class TimePicker extends MaterialPicker {
                 //显示组件
                 this.show(this.curInputData.themeColor, this.curInputData.type, this.curInputData.format);
 
-                ele.setAttribute('readonly', 'readonly');
+                t.blur();
             });
 
         });
@@ -2168,8 +2169,7 @@ if(typeof module !== "undefined" && module !== null) {
 
 return {
     DatePicker,
-    TimePicker,
-    MobileGesture
+    TimePicker
 };
 
 })(window);
