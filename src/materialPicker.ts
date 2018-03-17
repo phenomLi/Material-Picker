@@ -131,14 +131,14 @@ interface inputData {
     //确认选中的值
     selectedValue: string;
     //主题色和布局
-    themeColor: string;
-    type: string;
+    color: string;
+    layout: string;
 
     //是否使用24小时制（仅在TimePicker中生效）
     format?: string;
 
     //是否使用简化版（仅在DatePicker中生效）
-    simplify?: string;
+    simplify?: boolean;
 
     //事件函数
     onSelect(date: string);
@@ -148,15 +148,21 @@ interface inputData {
 
 //配置项
 interface config {
-    themeColor: string,
-    type: string,
+    color: string,
+    layout: string,
     format: string,
-    simplify: string,
+    simplify: boolean,
     directive: string
 }
 
 
-
+/**
+ * 所有组件的父类，所有组件都继承于此
+ * 暴露的api：
+ * show()
+ * addElement()
+ * methods()
+ */
 class MaterialPicker {
     
     //绑定的input元素合集
@@ -184,13 +190,13 @@ class MaterialPicker {
 
 
     //当前的主题色
-    protected themeColor: string;
+    protected color: string;
     //当前的布局
-    protected type: string;
+    protected layout: string;
     //当前时间制格式
     protected format: string;
     //当前布局（常规/简化）
-    protected simplify: string;
+    protected simplify: boolean;
     /**
      * 其他配置项，包括
      * 默认input-type绑定指令
@@ -203,22 +209,22 @@ class MaterialPicker {
      * 保存所有事件函数的容器
      */
     protected $methods: object = {};
-
+    protected comfirmFn: Function = null;
 
     protected mobileGesture: MobileGesture;
 
-    constructor(className: string, conf?: object) {
+    constructor(directive: string, conf?: object) {
 
         this.mobileGesture = new MobileGesture();
         this.$dateInstance = new Date();
 
         //默认配置
         this.$conf = {
-            themeColor: '#009688',
-            type: 'portrait',
+            color: '#f06292',
+            layout: 'portrait',
             format: '24hr',
-            simplify: 'false',
-            directive: className === 'DatePicker'? 'date-picker': 'time-picker'
+            simplify: false,
+            directive: directive
         };
 
         //合并配置项
@@ -228,17 +234,58 @@ class MaterialPicker {
 
         //默认inputData（用作当调用元素不是一个input，也就是直接调用show函数的情况）
         this.curInputData = this.setInputData();
+
+        //点击input显示组件
+        this.inputList.map(ele => {
+            this.inputEleBind(ele);
+        });
+       
     }
+
+    private inputEleBind(ele: Element) {
+        this.addEvent(ele, 'focus', t => {
+
+            //将this.curInputData设置为当前选中的input
+            this.curInputData = this.setInputData(t);
+
+            //显示组件
+            this.show({
+                color: this.curInputData.color,
+                layout: this.curInputData.layout,
+                simplify: this.curInputData.simplify,
+                format: this.curInputData.format
+            });
+
+            t.blur();
+        });
+    }
+
+    /**
+     * 字符串转布尔值
+     */
+    private string2Boolean(str: string | boolean): boolean {
+        if(typeof str === 'string') {
+            return str === 'true'? true: false;
+        }
+        else return str;
+    }
+
 
     /**
      * 组件初始化函数(需要子类重构)
      */
     protected init() {}
 
+
+    /**
+     * 显示组件 (需要子类重构)
+     */
+    public show(opt?: object) {}
+
     /**
      * 关闭组件
      */
-    public close() {
+    protected close() {
         this.setStyle(this.materialPickerContainer, ['transform', 'opacity'], ['translateY(-30%)', 0]);
         this.setStyle(this.wrapper, ['visibility', 'opacity'], ['hidden', 0]);
 
@@ -248,20 +295,20 @@ class MaterialPicker {
 
         this.curInputData.onClose();
 
-        this.setInputData();
+        this.curInputData = this.setInputData();
     }
 
     /**
      * 确认选择
      */
-    public comfirm(fn?: Function): void {
+    protected comfirm(): void {
         if(this.curInputData.inputEle) {
             this.curInputData.inputEle['value'] = this.curInputData.selectedValue = this.value;
+            this.curInputData.inputEle.setAttribute('value', this.value);
             this.curInputData.onSelect(this.curInputData.selectedValue);
-
-            if(fn && typeof fn === 'function') {
-                fn(this.value);
-            }
+        }
+        else {
+            this.comfirmFn && this.comfirmFn(this.value);
         }
     }
 
@@ -270,22 +317,30 @@ class MaterialPicker {
     /**
      * 设置组件主题：颜色/布局
      */
-    protected setTheme(color?: string, type?: string, format?: string, simplify?: string): void {
+    protected setTheme(opt?: object): void {
 
         /**
          * 这里要做一个判断是因为有时候setTheme函数并没有传入任何参数，例如像直接调用show函数的情况
          */
-        this.type = type || this.$conf.type;
-        this.themeColor = color || this.$conf.themeColor;
-        this.format = format || this.$conf.format;
-        this.simplify = simplify || this.$conf.simplify;
+        if(opt) {
+            this.layout = opt['layout'] || this.$conf.layout;
+            this.color = opt['color'] || this.$conf.color;
+            this.format = opt['format'] || this.$conf.format;
+            this.simplify = (opt['simplify'] !== null && opt['simplify'] !== undefined)? opt['simplify']: this.$conf.simplify;
+        }
+        else {
+            this.layout = this.$conf.layout;
+            this.color = this.$conf.color;
+            this.format = this.$conf.format;
+            this.simplify = this.$conf.simplify;
+        }
+        
+        this.setStyle(this.pickerInfoContainer, ['background'], [this.color]);
+        this.setStyle(this.closeBtn, ['color'], [this.color]);
+        this.setStyle(this.comfirmBtn, ['color'], [this.color]);
+        this.setStyle(this.nowBtn, ['color'], [this.color]);
 
-        this.setStyle(this.pickerInfoContainer, ['background'], [this.themeColor]);
-        this.setStyle(this.closeBtn, ['color'], [this.themeColor]);
-        this.setStyle(this.comfirmBtn, ['color'], [this.themeColor]);
-        this.setStyle(this.nowBtn, ['color'], [this.themeColor]);
-
-        this.setStyle(this.materialPickerContainer, ['flexDirection'], [this.type === 'portrait'? 'column': 'row']);
+        this.setStyle(this.materialPickerContainer, ['flexDirection'], [this.layout === 'portrait'? 'column': 'row']);
         
         this.setStyle(this.wrapper, ['display'], ['block']);
         setTimeout(() => {
@@ -382,9 +437,10 @@ class MaterialPicker {
      * @param ele <Element> 响应事件的元素
      * @param eventName <string> 事件名
      */
-    protected getMethod(ele: Element, eventName: string) {
+    protected getMethod(ele: Element, eventName: string, eventName2: string) {
         return (date?: string) => {
             this.$methods[ele.getAttribute(eventName)] && this.$methods[ele.getAttribute(eventName)](date);
+            this.$methods[ele.getAttribute(eventName2)] && this.$methods[ele.getAttribute(eventName2)](date);
         }
     }
 
@@ -398,22 +454,22 @@ class MaterialPicker {
             
             selectedValue: node['value'] || '',
 
-            themeColor: node.getAttribute('data-color') || this.$conf.themeColor,
-            type: node.getAttribute('data-type') || this.$conf.type,
+            color: node.getAttribute('color') || this.$conf.color,
+            layout: node.getAttribute('layout') || this.$conf.layout,
 
-            format: node.getAttribute('data-format') || this.$conf.format,
-            simplify: node.getAttribute('data-simplify') || this.$conf.simplify,
+            format: node.getAttribute('format') || this.$conf.format,
+            simplify: this.string2Boolean(node.getAttribute('simplify') || this.$conf.simplify),
 
-            onSelect: this.getMethod(node, 'onSelect'),
-            onShow: this.getMethod(node, 'onShow'),
-            onClose: this.getMethod(node, 'onClose')
+            onSelect: this.getMethod(node, 'onComfirm', 'data-oncomfirm'),
+            onShow: this.getMethod(node, 'onShow', 'data-onshow'),
+            onClose: this.getMethod(node, 'onClose', 'data-onclose')
         }: {
             inputEle: null,
             
             selectedValue: '',
 
-            themeColor: this.$conf.themeColor,
-            type: this.$conf.type,
+            color: this.$conf.color,
+            layout: this.$conf.layout,
 
             format: this.$conf.format,
             simplify: this.$conf.simplify,
@@ -424,6 +480,21 @@ class MaterialPicker {
         };
     }
 
+    /**
+     * 动态为input绑定组件
+     */
+    public addElement(ele: Element | Array<Element>): void {
+        if(ele['length']) {
+            [].slice.call(ele).map(e => {
+                this.inputList.push(e);
+                this.inputEleBind(e);
+            });
+        }
+        else {
+            this.inputList.push(ele);
+            this.inputEleBind(ele);
+        }
+    }
 
     /**
      * 添加事件方法的接口
@@ -512,7 +583,7 @@ class DatePicker extends MaterialPicker {
      * @param conf 配置项
      */
     constructor(conf?: object) {
-        super('DatePicker', conf);
+        super('date-picker', conf);
         
         this.curYear = this.$dateInstance.getFullYear();
         this.curMonth = this.$dateInstance.getMonth() + 1;
@@ -788,7 +859,7 @@ class DatePicker extends MaterialPicker {
                     }
 
                     if(day === this.curDate && year === this.curYear && month === this.curMonth) {
-                        !span.getAttribute('data-select') && this.setStyle(span, ['color'], [this.themeColor]);
+                        !span.getAttribute('data-select') && this.setStyle(span, ['color'], [this.color]);
                         span.setAttribute('data-today', 'true');
 
                         this.todayEle = span;
@@ -827,7 +898,7 @@ class DatePicker extends MaterialPicker {
 
                                 <div data-ele="normal-container" style="color: #fff;box-sizing: border-box;align-items: stretch; display: flex; flex-direction: column; justify-content: space-between; position: relative; align-items: stretch;">
                                     <div data-ele="weekday" style="padding: 10px 0 10px 0; background: rgba(0, 0, 0, 0.2); text-align: center; color: rgba(255, 255, 255, 0.8);"></div>
-                                    <div style="padding:20px; width: 140px; align-self: center; flex-grow: 1; display:flex; flex-direction: column;">
+                                    <div style="padding:20px; width: 140px; align-self: center; flex-grow: 1; display:flex; flex-direction: column;box-sizing: content-box;">
                                         <div data-ele="month-date-n">
                                             <div data-ele="month-n" style="text-align: center;font-size: 24px; transition: all 0.2s ease;"></div>
                                             <div data-ele="date-n" style="color: #fff;font-size: 76px; font-weight: 900;transition: all 0.2s ease;text-align: center; padding: 0 0 12px 0;"></div>
@@ -922,7 +993,7 @@ class DatePicker extends MaterialPicker {
 
         this.addEvent(this.materialPickerContainer, 'mouseover', target => {
             if(this.isUnselectDateEle(target)) {
-                this.setStyle(target, ['background', 'opacity', 'color'], [this.themeColor, 0.65, '#fff']);
+                this.setStyle(target, ['background', 'opacity', 'color'], [this.color, 0.65, '#fff']);
             }
         });
 
@@ -932,7 +1003,7 @@ class DatePicker extends MaterialPicker {
                 this.setStyle(
                     target, 
                     ['background', 'opacity', 'color'], 
-                    ['#fff', 1, target['getAttribute']('data-today')? this.themeColor: '#000']
+                    ['#fff', 1, target['getAttribute']('data-today')? this.color: '#000']
                 );
             }
         });
@@ -973,13 +1044,13 @@ class DatePicker extends MaterialPicker {
             this.setStyle(
                 this.lastSelectDateEle, 
                 ['background', 'opacity', 'color'], 
-                ['#fff', 1, this.lastSelectDateEle['getAttribute']('data-today')? this.themeColor: '#000']
+                ['#fff', 1, this.lastSelectDateEle['getAttribute']('data-today')? this.color: '#000']
             );
             this.lastSelectDateEle['removeAttribute']('data-select');
         }
 
         this.curSelectDateEle['setAttribute']('data-select', true);
-        this.setStyle(this.curSelectDateEle, ['background', 'opacity', 'color'], [this.themeColor, 1, '#fff']);
+        this.setStyle(this.curSelectDateEle, ['background', 'opacity', 'color'], [this.color, 1, '#fff']);
 
         this.lastSelectDateEle = this.curSelectDateEle;
 
@@ -994,7 +1065,7 @@ class DatePicker extends MaterialPicker {
             this.setStyle(this.lastSelectYear, ['color', 'font-size'], ['#666', '20px']);
         }
 
-        this.setStyle(this.curSelectYear, ['color', 'font-size'], [this.themeColor, '28px']);
+        this.setStyle(this.curSelectYear, ['color', 'font-size'], [this.color, '28px']);
 
         this.lastSelectYear = this.curSelectYear;
         
@@ -1016,7 +1087,7 @@ class DatePicker extends MaterialPicker {
         this.monthYearBody.appendChild(this.createMonthYearItem(this.month, this.year));
         this.calendarBody.appendChild(this.createCalendarItem(this.month, this.year));
 
-        if(this.simplify === 'true') {
+        if(this.simplify) {
             this.setStyle(this.simplifyCon, ['display'], ['flex']);
             this.setStyle(this.normalCon, ['display'], ['none']);
         }
@@ -1134,7 +1205,7 @@ class DatePicker extends MaterialPicker {
      * 关闭年份选择列表
      */
     private yearListClose() {
-        if(this.simplify === 'true') {
+        if(this.simplify) {
             this.setStyle(this.yearCon_s, ['color', 'font-size', 'cursor'], ['rgba(255, 255, 255, 0.7)', '16px', 'pointer']);
             this.setStyle(this.monthDateCon_s, ['color', 'font-size', 'cursor'], ['rgba(255, 255, 255, 1)', '40px', 'auto']);
         }
@@ -1157,7 +1228,7 @@ class DatePicker extends MaterialPicker {
 
         this.toggleYearFocus(toYearEle);
 
-        if(this.simplify === 'true') {
+        if(this.simplify) {
             this.setStyle(this.yearCon_s, ['color', 'font-size', 'cursor'], ['rgba(255, 255, 255, 1)', '36px', 'auto']);
             this.setStyle(this.monthDateCon_s, ['color', 'font-size', 'cursor'], ['rgba(255, 255, 255, 0.7)', '16px', 'pointer']);
         }
@@ -1227,22 +1298,6 @@ class DatePicker extends MaterialPicker {
         /**
          * -----------------事件绑定------------------------
          */
-
-        //点击input显示组件
-        this.inputList.map(ele => {
-
-            this.addEvent(ele, 'focus', t => {
-
-                //将this.curInputData设置为当前选中的input
-                this.curInputData = this.setInputData(t);
-
-                //显示组件
-                this.show(this.curInputData.themeColor, this.curInputData.type, this.curInputData.simplify);
-
-                t.blur();
-            });
-
-        });
 
 
         //点击wrapper关闭组件
@@ -1338,13 +1393,13 @@ class DatePicker extends MaterialPicker {
 
     /**
      * 组件显示
-     * @param color <string> 主题色
-     * @param type <string> 布局类型
      */
-    public show(color?: string, type?: string, simplify?: string) {
+    public show(opt?: object) {
         
+        this.comfirmFn = opt? opt['comfirm']: null;
+
         //设置外观
-        this.setTheme(color, type, '', simplify);
+        this.setTheme(opt);
 
         //获取value的日期并应用到组件
         this.setCurDate();
@@ -1498,7 +1553,7 @@ class TimePicker extends MaterialPicker {
 
 
     constructor(conf?: object) {
-        super('TimePicker', conf);
+        super('time-picker', conf);
 
         this.curHour = this.$dateInstance.getHours();
         this.curMinute = this.$dateInstance.getMinutes();
@@ -1833,8 +1888,8 @@ class TimePicker extends MaterialPicker {
         /**
          * 设置指针信息
          */
-        this.setClockTheme(this.hourClock, this.themeColor);
-        this.setClockTheme(this.minuteClock, this.themeColor);
+        this.setClockTheme(this.hourClock, this.color);
+        this.setClockTheme(this.minuteClock, this.color);
         this.setPointerRotate(this.hourClock, this.hourClock.interval*(this.hour%12));
         this.setPointerRotate(this.minuteClock, this.minuteClock.interval*this.minute);
 
@@ -1920,13 +1975,13 @@ class TimePicker extends MaterialPicker {
             this.setStyle(
                 clock.lastSelectClockItem, 
                 ['background', 'color'], 
-                ['transparent', clock.lastSelectClockItem.getAttribute('data-now')? this.themeColor: '#666']
+                ['transparent', clock.lastSelectClockItem.getAttribute('data-now')? this.color: '#666']
             );
             clock.lastSelectClockItem.removeAttribute('data-select');
         }
 
         if(clock.curSelectClockItem) {
-            this.setStyle(clock.curSelectClockItem, ['background', 'color'], [this.themeColor, '#fff']);
+            this.setStyle(clock.curSelectClockItem, ['background', 'color'], [this.color, '#fff']);
             clock.curSelectClockItem.setAttribute('data-select', 'true');
 
             clock.lastSelectClockItem = clock.curSelectClockItem;
@@ -2063,20 +2118,6 @@ class TimePicker extends MaterialPicker {
          * -----------------事件绑定------------------------
          */
 
-        //点击input显示组件
-        this.inputList.map(ele => {
-            this.addEvent(ele, 'focus', t => {
-                //将this.curInputData设置为当前选中的input
-                this.curInputData = this.setInputData(t);
-
-                //显示组件
-                this.show(this.curInputData.themeColor, this.curInputData.type, this.curInputData.format);
-
-                t.blur();
-            });
-
-        });
-
 
         //点击wrapper关闭组件
         this.addEvent(this.wrapper, 'click', t => {
@@ -2135,12 +2176,13 @@ class TimePicker extends MaterialPicker {
 
     /**
      * 显示组件
-     * @param themeColor 主题色
-     * @param type 布局类型
      */
-    public show(themeColor: string, type: string, format: string) {
+    public show(opt?: object) {
+
+        this.comfirmFn = opt? opt['comfirm']: null;
+
         //设置主题/布局
-        this.setTheme(themeColor, type, format);
+        this.setTheme(opt);
 
         //解析组件value里的值
         this.getTime();
@@ -2154,6 +2196,11 @@ class TimePicker extends MaterialPicker {
 
 
 }
+
+
+
+
+
 
 
 

@@ -83,7 +83,8 @@ var _a = (function (window) {
         return MobileGesture;
     }());
     var MaterialPicker = (function () {
-        function MaterialPicker(className, conf) {
+        function MaterialPicker(directive, conf) {
+            var _this = this;
             this.inputList = [];
             this.curInputData = null;
             this.wrapper = null;
@@ -92,20 +93,45 @@ var _a = (function (window) {
             this.comfirmBtn = null;
             this.$dateInstance = null;
             this.$methods = {};
+            this.comfirmFn = null;
             this.mobileGesture = new MobileGesture();
             this.$dateInstance = new Date();
             this.$conf = {
-                themeColor: '#009688',
-                type: 'portrait',
+                color: '#f06292',
+                layout: 'portrait',
                 format: '24hr',
-                simplify: 'false',
-                directive: className === 'DatePicker' ? 'date-picker' : 'time-picker'
+                simplify: false,
+                directive: directive
             };
             this.$conf = conf ? Object['assign'](this.$conf, conf) : this.$conf;
             this.inputList = Array.prototype.slice.call(document.querySelectorAll("input[type=\"" + this.$conf['directive'] + "\"]"));
             this.curInputData = this.setInputData();
+            this.inputList.map(function (ele) {
+                _this.inputEleBind(ele);
+            });
         }
+        MaterialPicker.prototype.inputEleBind = function (ele) {
+            var _this = this;
+            this.addEvent(ele, 'focus', function (t) {
+                _this.curInputData = _this.setInputData(t);
+                _this.show({
+                    color: _this.curInputData.color,
+                    layout: _this.curInputData.layout,
+                    simplify: _this.curInputData.simplify,
+                    format: _this.curInputData.format
+                });
+                t.blur();
+            });
+        };
+        MaterialPicker.prototype.string2Boolean = function (str) {
+            if (typeof str === 'string') {
+                return str === 'true' ? true : false;
+            }
+            else
+                return str;
+        };
         MaterialPicker.prototype.init = function () { };
+        MaterialPicker.prototype.show = function (opt) { };
         MaterialPicker.prototype.close = function () {
             var _this = this;
             this.setStyle(this.materialPickerContainer, ['transform', 'opacity'], ['translateY(-30%)', 0]);
@@ -114,28 +140,37 @@ var _a = (function (window) {
                 _this.setStyle(_this.wrapper, ['display'], ['none']);
             }, 200);
             this.curInputData.onClose();
-            this.setInputData();
+            this.curInputData = this.setInputData();
         };
-        MaterialPicker.prototype.comfirm = function (fn) {
+        MaterialPicker.prototype.comfirm = function () {
             if (this.curInputData.inputEle) {
                 this.curInputData.inputEle['value'] = this.curInputData.selectedValue = this.value;
+                this.curInputData.inputEle.setAttribute('value', this.value);
                 this.curInputData.onSelect(this.curInputData.selectedValue);
-                if (fn && typeof fn === 'function') {
-                    fn(this.value);
-                }
+            }
+            else {
+                this.comfirmFn && this.comfirmFn(this.value);
             }
         };
-        MaterialPicker.prototype.setTheme = function (color, type, format, simplify) {
+        MaterialPicker.prototype.setTheme = function (opt) {
             var _this = this;
-            this.type = type || this.$conf.type;
-            this.themeColor = color || this.$conf.themeColor;
-            this.format = format || this.$conf.format;
-            this.simplify = simplify || this.$conf.simplify;
-            this.setStyle(this.pickerInfoContainer, ['background'], [this.themeColor]);
-            this.setStyle(this.closeBtn, ['color'], [this.themeColor]);
-            this.setStyle(this.comfirmBtn, ['color'], [this.themeColor]);
-            this.setStyle(this.nowBtn, ['color'], [this.themeColor]);
-            this.setStyle(this.materialPickerContainer, ['flexDirection'], [this.type === 'portrait' ? 'column' : 'row']);
+            if (opt) {
+                this.layout = opt['layout'] || this.$conf.layout;
+                this.color = opt['color'] || this.$conf.color;
+                this.format = opt['format'] || this.$conf.format;
+                this.simplify = (opt['simplify'] !== null && opt['simplify'] !== undefined) ? opt['simplify'] : this.$conf.simplify;
+            }
+            else {
+                this.layout = this.$conf.layout;
+                this.color = this.$conf.color;
+                this.format = this.$conf.format;
+                this.simplify = this.$conf.simplify;
+            }
+            this.setStyle(this.pickerInfoContainer, ['background'], [this.color]);
+            this.setStyle(this.closeBtn, ['color'], [this.color]);
+            this.setStyle(this.comfirmBtn, ['color'], [this.color]);
+            this.setStyle(this.nowBtn, ['color'], [this.color]);
+            this.setStyle(this.materialPickerContainer, ['flexDirection'], [this.layout === 'portrait' ? 'column' : 'row']);
             this.setStyle(this.wrapper, ['display'], ['block']);
             setTimeout(function () {
                 _this.setStyle(_this.materialPickerContainer, ['transform', 'opacity'], ['translateY(0)', '1']);
@@ -186,34 +221,48 @@ var _a = (function (window) {
         MaterialPicker.prototype.setStyle = function (ele, styleList, valueList) {
             styleList.map(function (style, i) { return ele['style'][style] = valueList[i]; });
         };
-        MaterialPicker.prototype.getMethod = function (ele, eventName) {
+        MaterialPicker.prototype.getMethod = function (ele, eventName, eventName2) {
             var _this = this;
             return function (date) {
                 _this.$methods[ele.getAttribute(eventName)] && _this.$methods[ele.getAttribute(eventName)](date);
+                _this.$methods[ele.getAttribute(eventName2)] && _this.$methods[ele.getAttribute(eventName2)](date);
             };
         };
         MaterialPicker.prototype.setInputData = function (node) {
             return node ? {
                 inputEle: node,
                 selectedValue: node['value'] || '',
-                themeColor: node.getAttribute('data-color') || this.$conf.themeColor,
-                type: node.getAttribute('data-type') || this.$conf.type,
-                format: node.getAttribute('data-format') || this.$conf.format,
-                simplify: node.getAttribute('data-simplify') || this.$conf.simplify,
-                onSelect: this.getMethod(node, 'onSelect'),
-                onShow: this.getMethod(node, 'onShow'),
-                onClose: this.getMethod(node, 'onClose')
+                color: node.getAttribute('color') || this.$conf.color,
+                layout: node.getAttribute('layout') || this.$conf.layout,
+                format: node.getAttribute('format') || this.$conf.format,
+                simplify: this.string2Boolean(node.getAttribute('simplify') || this.$conf.simplify),
+                onSelect: this.getMethod(node, 'onComfirm', 'data-oncomfirm'),
+                onShow: this.getMethod(node, 'onShow', 'data-onshow'),
+                onClose: this.getMethod(node, 'onClose', 'data-onclose')
             } : {
                 inputEle: null,
                 selectedValue: '',
-                themeColor: this.$conf.themeColor,
-                type: this.$conf.type,
+                color: this.$conf.color,
+                layout: this.$conf.layout,
                 format: this.$conf.format,
                 simplify: this.$conf.simplify,
                 onSelect: function () { },
                 onShow: function () { },
                 onClose: function () { }
             };
+        };
+        MaterialPicker.prototype.addElement = function (ele) {
+            var _this = this;
+            if (ele['length']) {
+                [].slice.call(ele).map(function (e) {
+                    _this.inputList.push(e);
+                    _this.inputEleBind(e);
+                });
+            }
+            else {
+                this.inputList.push(ele);
+                this.inputEleBind(ele);
+            }
         };
         MaterialPicker.prototype.methods = function (name, fn) {
             this.$methods[name] = fn;
@@ -223,7 +272,7 @@ var _a = (function (window) {
     var DatePicker = (function (_super) {
         __extends(DatePicker, _super);
         function DatePicker(conf) {
-            var _this = _super.call(this, 'DatePicker', conf) || this;
+            var _this = _super.call(this, 'date-picker', conf) || this;
             _this.yearCon_s = null;
             _this.monthCon_s = null;
             _this.dateCon_s = null;
@@ -359,7 +408,7 @@ var _a = (function (window) {
                             this.toggleFocus(span);
                         }
                         if (day === this.curDate && year === this.curYear && month === this.curMonth) {
-                            !span.getAttribute('data-select') && this.setStyle(span, ['color'], [this.themeColor]);
+                            !span.getAttribute('data-select') && this.setStyle(span, ['color'], [this.color]);
                             span.setAttribute('data-today', 'true');
                             this.todayEle = span;
                         }
@@ -371,7 +420,7 @@ var _a = (function (window) {
             return calendarItem;
         };
         DatePicker.prototype.createContainer = function () {
-            var div = document.createElement('div'), template = "\n                <div data-ele=\"wrapper-d\" style=\"box-sizing: border-box; position: absolute; top: 0;left: 0;width: 100%; height: 100vh; visibility: hidden; opacity: 0; transition: all 0.2s ease;display: none;\">\n                    <div style=\"display: flex;justify-content: center;align-items: center;width: 100%;height: 100%;background: rgba(0, 0, 0, 0.5);\">\n                        <div data-ele=\"material-picker-container-d\" style=\"-webkit-tap-highlight-color: rgba(0,0,0,0);display: flex;box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5); transition: all 0.35s ease; transform: translateY(-30%); opacity: 0;\">\n                            \n                            <div data-ele=\"picker-info-container-d\">\n\n                                <div data-ele=\"simplify-container\" style=\"color: #fff;box-sizing: border-box;padding: 24px;\">\n                                    <div style=\"width: 150px; height: 70px;\">\n                                        <div data-ele=\"year-s\" style=\"color: rgba(255, 255, 255, 0.7);cursor: pointer; transition: all 0.2s ease;\"></div>\n                                        <div data-ele=\"month-date-s\" style=\"font-size: 40px; margin-top: 10px;\">\n                                            <span data-ele=\"month-s\"></span><span data-ele=\"date-s\"></span>\u53F7\n                                        </div>\n                                    </div>\n                                </div>\n\n                                <div data-ele=\"normal-container\" style=\"color: #fff;box-sizing: border-box;align-items: stretch; display: flex; flex-direction: column; justify-content: space-between; position: relative; align-items: stretch;\">\n                                    <div data-ele=\"weekday\" style=\"padding: 10px 0 10px 0; background: rgba(0, 0, 0, 0.2); text-align: center; color: rgba(255, 255, 255, 0.8);\"></div>\n                                    <div style=\"padding:20px; width: 140px; align-self: center; flex-grow: 1; display:flex; flex-direction: column;\">\n                                        <div data-ele=\"month-date-n\">\n                                            <div data-ele=\"month-n\" style=\"text-align: center;font-size: 24px; transition: all 0.2s ease;\"></div>\n                                            <div data-ele=\"date-n\" style=\"color: #fff;font-size: 76px; font-weight: 900;transition: all 0.2s ease;text-align: center; padding: 0 0 12px 0;\"></div>\n                                        </div>\n                                        <div data-ele=\"year-n\" style=\"color: rgba(255, 255, 255, 0.7);cursor: pointer; transition: all 0.2s ease;text-align: center;\"></div>\n                                    </div>\n                                </div>\n                                \n                            </div>\n                \n                            <div data-ele=\"picker-body-container-d\" style=\"display: flex;flex-direction: column;justify-content: space-between;padding: 0 8px 0 8px;box-sizing: border-box;background: #fff;align-items: stretch; position: relative;\">\n                                <div style=\"display: flex;justify-content: space-around;align-items: center;font-size: 14px;font-weight: 900;height: 48px;color: rgba(0, 0, 0, 0.7);\">\n                                    \n                                    <button data-ele=\"btn-pm\" style=\"-webkit-tap-highlight-color:transparent;outline: none;border: none;cursor: pointer; background: transparent;\">\n                                        <svg viewBox=\"0 0 24 24\" style=\"display: inline-block; color: rgba(0, 0, 0, 0.87); fill: currentcolor; height: 24px; width: 24px; -ms-user-select: none;user-select: none; transition: all 450ms cubic-bezier(0.23, 1, 0.32, 1) 0ms;\">\n                                            <path d=\"M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z\"></path>\n                                        </svg>\n                                    </button>\n\n                                    <div data-ele=\"month-year-body\" style=\"overflow: hidden; position: relative; width: 140px; height: 28px;\"></div>\n\n                                    <button data-ele=\"btn-nm\" style=\"-webkit-tap-highlight-color:transparent;outline: none;border: none;cursor: pointer;background: transparent;\">\n                                        <svg viewBox=\"0 0 24 24\" style=\"display: inline-block; color: rgba(0, 0, 0, 0.87); fill: currentcolor; height: 24px; width: 24px;-ms-user-select: none; user-select: none; transition: all 450ms cubic-bezier(0.23, 1, 0.32, 1) 0ms;\">\n                                            <path d=\"M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z\"></path>\n                                        </svg>\n                                    </button>\n\n                                </div>\n                \n                                <div>\n                                    <div style=\"display: flex;height: 20px;font-size: 12px;color: rgba(0, 0, 0, 0.5); text-align: center;\">\n                                        <div style=\"width: 40px;\">\u65E5</div>\n                                        <div style=\"width: 40px;\">\u4E00</div>\n                                        <div style=\"width: 40px;\">\u4E8C</div>\n                                        <div style=\"width: 40px;\">\u4E09</div>\n                                        <div style=\"width: 40px;\">\u56DB</div>\n                                        <div style=\"width: 40px;\">\u4E94</div>\n                                        <div style=\"width: 40px;\">\u516D</div>\n                                    </div>\n                \n                                    <div data-ele=\"calendar-body\" style=\"overflow: hidden;position: relative; width: 280px; height: 240px;\"></div>\n                                </div>\n                \n                                <div style=\"display: flex;justify-content: space-between;align-items: center; padding: 8px 0 8px 0;\">\n                                    <button data-ele=\"btn-now-d\" style=\"-webkit-tap-highlight-color:transparent;background: transparent;width: 64px;height: 36px;outline: none;border: none;font-size: 14px;cursor: pointer;\">\u4ECA\u5929</button>\n                                    <div style=\"display: flex; width: 40%; justify-content: space-between; align-items: center;\">\n                                        <button data-ele=\"btn-close-d\" style=\"-webkit-tap-highlight-color:transparent;background: transparent;width: 64px;height: 36px;outline: none;border: none;font-size: 14px;cursor: pointer;\">\u5173\u95ED</button>\n                                        <button data-ele=\"btn-comfirm-d\" style=\"-webkit-tap-highlight-color:transparent;background: transparent;width: 64px;height: 36px;outline: none;border: none;font-size: 14px;cursor: pointer;\">\u786E\u5B9A</button>\n                                    </div>\n                                </div>\n\n                                <div data-ele=\"year-list-con\" style=\"position: absolute; width: 100%; height: 100%; visibility: hidden; background: #fff; transition: all 0.15s ease; left: 0; top: 0; overflow: auto;-webkit-overflow-scrolling: touch;\">\n\n                                </div>\n                            </div>\n\n                        </div>\n                    </div>\n                </div>\n                ";
+            var div = document.createElement('div'), template = "\n                <div data-ele=\"wrapper-d\" style=\"box-sizing: border-box; position: absolute; top: 0;left: 0;width: 100%; height: 100vh; visibility: hidden; opacity: 0; transition: all 0.2s ease;display: none;\">\n                    <div style=\"display: flex;justify-content: center;align-items: center;width: 100%;height: 100%;background: rgba(0, 0, 0, 0.5);\">\n                        <div data-ele=\"material-picker-container-d\" style=\"-webkit-tap-highlight-color: rgba(0,0,0,0);display: flex;box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5); transition: all 0.35s ease; transform: translateY(-30%); opacity: 0;\">\n                            \n                            <div data-ele=\"picker-info-container-d\">\n\n                                <div data-ele=\"simplify-container\" style=\"color: #fff;box-sizing: border-box;padding: 24px;\">\n                                    <div style=\"width: 150px; height: 70px;\">\n                                        <div data-ele=\"year-s\" style=\"color: rgba(255, 255, 255, 0.7);cursor: pointer; transition: all 0.2s ease;\"></div>\n                                        <div data-ele=\"month-date-s\" style=\"font-size: 40px; margin-top: 10px;\">\n                                            <span data-ele=\"month-s\"></span><span data-ele=\"date-s\"></span>\u53F7\n                                        </div>\n                                    </div>\n                                </div>\n\n                                <div data-ele=\"normal-container\" style=\"color: #fff;box-sizing: border-box;align-items: stretch; display: flex; flex-direction: column; justify-content: space-between; position: relative; align-items: stretch;\">\n                                    <div data-ele=\"weekday\" style=\"padding: 10px 0 10px 0; background: rgba(0, 0, 0, 0.2); text-align: center; color: rgba(255, 255, 255, 0.8);\"></div>\n                                    <div style=\"padding:20px; width: 140px; align-self: center; flex-grow: 1; display:flex; flex-direction: column;box-sizing: content-box;\">\n                                        <div data-ele=\"month-date-n\">\n                                            <div data-ele=\"month-n\" style=\"text-align: center;font-size: 24px; transition: all 0.2s ease;\"></div>\n                                            <div data-ele=\"date-n\" style=\"color: #fff;font-size: 76px; font-weight: 900;transition: all 0.2s ease;text-align: center; padding: 0 0 12px 0;\"></div>\n                                        </div>\n                                        <div data-ele=\"year-n\" style=\"color: rgba(255, 255, 255, 0.7);cursor: pointer; transition: all 0.2s ease;text-align: center;\"></div>\n                                    </div>\n                                </div>\n                                \n                            </div>\n                \n                            <div data-ele=\"picker-body-container-d\" style=\"display: flex;flex-direction: column;justify-content: space-between;padding: 0 8px 0 8px;box-sizing: border-box;background: #fff;align-items: stretch; position: relative;\">\n                                <div style=\"display: flex;justify-content: space-around;align-items: center;font-size: 14px;font-weight: 900;height: 48px;color: rgba(0, 0, 0, 0.7);\">\n                                    \n                                    <button data-ele=\"btn-pm\" style=\"-webkit-tap-highlight-color:transparent;outline: none;border: none;cursor: pointer; background: transparent;\">\n                                        <svg viewBox=\"0 0 24 24\" style=\"display: inline-block; color: rgba(0, 0, 0, 0.87); fill: currentcolor; height: 24px; width: 24px; -ms-user-select: none;user-select: none; transition: all 450ms cubic-bezier(0.23, 1, 0.32, 1) 0ms;\">\n                                            <path d=\"M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z\"></path>\n                                        </svg>\n                                    </button>\n\n                                    <div data-ele=\"month-year-body\" style=\"overflow: hidden; position: relative; width: 140px; height: 28px;\"></div>\n\n                                    <button data-ele=\"btn-nm\" style=\"-webkit-tap-highlight-color:transparent;outline: none;border: none;cursor: pointer;background: transparent;\">\n                                        <svg viewBox=\"0 0 24 24\" style=\"display: inline-block; color: rgba(0, 0, 0, 0.87); fill: currentcolor; height: 24px; width: 24px;-ms-user-select: none; user-select: none; transition: all 450ms cubic-bezier(0.23, 1, 0.32, 1) 0ms;\">\n                                            <path d=\"M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z\"></path>\n                                        </svg>\n                                    </button>\n\n                                </div>\n                \n                                <div>\n                                    <div style=\"display: flex;height: 20px;font-size: 12px;color: rgba(0, 0, 0, 0.5); text-align: center;\">\n                                        <div style=\"width: 40px;\">\u65E5</div>\n                                        <div style=\"width: 40px;\">\u4E00</div>\n                                        <div style=\"width: 40px;\">\u4E8C</div>\n                                        <div style=\"width: 40px;\">\u4E09</div>\n                                        <div style=\"width: 40px;\">\u56DB</div>\n                                        <div style=\"width: 40px;\">\u4E94</div>\n                                        <div style=\"width: 40px;\">\u516D</div>\n                                    </div>\n                \n                                    <div data-ele=\"calendar-body\" style=\"overflow: hidden;position: relative; width: 280px; height: 240px;\"></div>\n                                </div>\n                \n                                <div style=\"display: flex;justify-content: space-between;align-items: center; padding: 8px 0 8px 0;\">\n                                    <button data-ele=\"btn-now-d\" style=\"-webkit-tap-highlight-color:transparent;background: transparent;width: 64px;height: 36px;outline: none;border: none;font-size: 14px;cursor: pointer;\">\u4ECA\u5929</button>\n                                    <div style=\"display: flex; width: 40%; justify-content: space-between; align-items: center;\">\n                                        <button data-ele=\"btn-close-d\" style=\"-webkit-tap-highlight-color:transparent;background: transparent;width: 64px;height: 36px;outline: none;border: none;font-size: 14px;cursor: pointer;\">\u5173\u95ED</button>\n                                        <button data-ele=\"btn-comfirm-d\" style=\"-webkit-tap-highlight-color:transparent;background: transparent;width: 64px;height: 36px;outline: none;border: none;font-size: 14px;cursor: pointer;\">\u786E\u5B9A</button>\n                                    </div>\n                                </div>\n\n                                <div data-ele=\"year-list-con\" style=\"position: absolute; width: 100%; height: 100%; visibility: hidden; background: #fff; transition: all 0.15s ease; left: 0; top: 0; overflow: auto;-webkit-overflow-scrolling: touch;\">\n\n                                </div>\n                            </div>\n\n                        </div>\n                    </div>\n                </div>\n                ";
             div.innerHTML = template;
             return div.children[0];
         };
@@ -388,12 +437,12 @@ var _a = (function (window) {
             var _this = this;
             this.addEvent(this.materialPickerContainer, 'mouseover', function (target) {
                 if (_this.isUnselectDateEle(target)) {
-                    _this.setStyle(target, ['background', 'opacity', 'color'], [_this.themeColor, 0.65, '#fff']);
+                    _this.setStyle(target, ['background', 'opacity', 'color'], [_this.color, 0.65, '#fff']);
                 }
             });
             this.addEvent(this.materialPickerContainer, 'mouseout', function (target) {
                 if (_this.isUnselectDateEle(target)) {
-                    _this.setStyle(target, ['background', 'opacity', 'color'], ['#fff', 1, target['getAttribute']('data-today') ? _this.themeColor : '#000']);
+                    _this.setStyle(target, ['background', 'opacity', 'color'], ['#fff', 1, target['getAttribute']('data-today') ? _this.color : '#000']);
                 }
             });
         };
@@ -414,11 +463,11 @@ var _a = (function (window) {
         DatePicker.prototype.toggleFocus = function (ele) {
             this.curSelectDateEle = ele;
             if (this.lastSelectDateEle) {
-                this.setStyle(this.lastSelectDateEle, ['background', 'opacity', 'color'], ['#fff', 1, this.lastSelectDateEle['getAttribute']('data-today') ? this.themeColor : '#000']);
+                this.setStyle(this.lastSelectDateEle, ['background', 'opacity', 'color'], ['#fff', 1, this.lastSelectDateEle['getAttribute']('data-today') ? this.color : '#000']);
                 this.lastSelectDateEle['removeAttribute']('data-select');
             }
             this.curSelectDateEle['setAttribute']('data-select', true);
-            this.setStyle(this.curSelectDateEle, ['background', 'opacity', 'color'], [this.themeColor, 1, '#fff']);
+            this.setStyle(this.curSelectDateEle, ['background', 'opacity', 'color'], [this.color, 1, '#fff']);
             this.lastSelectDateEle = this.curSelectDateEle;
             this.date = parseInt(ele['innerHTML']);
         };
@@ -427,7 +476,7 @@ var _a = (function (window) {
             if (this.lastSelectYear) {
                 this.setStyle(this.lastSelectYear, ['color', 'font-size'], ['#666', '20px']);
             }
-            this.setStyle(this.curSelectYear, ['color', 'font-size'], [this.themeColor, '28px']);
+            this.setStyle(this.curSelectYear, ['color', 'font-size'], [this.color, '28px']);
             this.lastSelectYear = this.curSelectYear;
             this.year = parseInt(ele['innerHTML']);
         };
@@ -438,7 +487,7 @@ var _a = (function (window) {
             this.calendarBody.innerHTML = '';
             this.monthYearBody.appendChild(this.createMonthYearItem(this.month, this.year));
             this.calendarBody.appendChild(this.createCalendarItem(this.month, this.year));
-            if (this.simplify === 'true') {
+            if (this.simplify) {
                 this.setStyle(this.simplifyCon, ['display'], ['flex']);
                 this.setStyle(this.normalCon, ['display'], ['none']);
             }
@@ -526,7 +575,7 @@ var _a = (function (window) {
             this.setDate();
         };
         DatePicker.prototype.yearListClose = function () {
-            if (this.simplify === 'true') {
+            if (this.simplify) {
                 this.setStyle(this.yearCon_s, ['color', 'font-size', 'cursor'], ['rgba(255, 255, 255, 0.7)', '16px', 'pointer']);
                 this.setStyle(this.monthDateCon_s, ['color', 'font-size', 'cursor'], ['rgba(255, 255, 255, 1)', '40px', 'auto']);
             }
@@ -541,7 +590,7 @@ var _a = (function (window) {
             var toYearEle = this.getElement('li', "data-year-item-" + this.year);
             this.yearListCon.scrollTop = toYearEle['offsetTop'] - this.yearListCon['offsetHeight'] / 2 + 20;
             this.toggleYearFocus(toYearEle);
-            if (this.simplify === 'true') {
+            if (this.simplify) {
                 this.setStyle(this.yearCon_s, ['color', 'font-size', 'cursor'], ['rgba(255, 255, 255, 1)', '36px', 'auto']);
                 this.setStyle(this.monthDateCon_s, ['color', 'font-size', 'cursor'], ['rgba(255, 255, 255, 0.7)', '16px', 'pointer']);
             }
@@ -579,13 +628,6 @@ var _a = (function (window) {
             this.pmBtn = this.getElement('button', 'btn-pm');
             this.nmBtn = this.getElement('button', 'btn-nm');
             this.yearListCon.appendChild(this.createYearList(this.year));
-            this.inputList.map(function (ele) {
-                _this.addEvent(ele, 'focus', function (t) {
-                    _this.curInputData = _this.setInputData(t);
-                    _this.show(_this.curInputData.themeColor, _this.curInputData.type, _this.curInputData.simplify);
-                    t.blur();
-                });
-            });
             this.addEvent(this.wrapper, 'click', function (t) {
                 _this.close();
             });
@@ -627,8 +669,9 @@ var _a = (function (window) {
             this.select();
             this.selectYear();
         };
-        DatePicker.prototype.show = function (color, type, simplify) {
-            this.setTheme(color, type, '', simplify);
+        DatePicker.prototype.show = function (opt) {
+            this.comfirmFn = opt ? opt['comfirm'] : null;
+            this.setTheme(opt);
             this.setCurDate();
             this.renderPanel();
             this.setDate();
@@ -640,7 +683,7 @@ var _a = (function (window) {
     var TimePicker = (function (_super) {
         __extends(TimePicker, _super);
         function TimePicker(conf) {
-            var _this = _super.call(this, 'TimePicker', conf) || this;
+            var _this = _super.call(this, 'time-picker', conf) || this;
             _this.hourCon = null;
             _this.minuteCon = null;
             _this.meridiemCon = null;
@@ -816,8 +859,8 @@ var _a = (function (window) {
                 this.setStyle(this.hourClock.clock24, ['display'], ['block']);
             }
             this.format === 'ampm' && this.toggleFocusMeridiem(this[this.meridiem + "Con"]);
-            this.setClockTheme(this.hourClock, this.themeColor);
-            this.setClockTheme(this.minuteClock, this.themeColor);
+            this.setClockTheme(this.hourClock, this.color);
+            this.setClockTheme(this.minuteClock, this.color);
             this.setPointerRotate(this.hourClock, this.hourClock.interval * (this.hour % 12));
             this.setPointerRotate(this.minuteClock, this.minuteClock.interval * this.minute);
             this.switchClock(this.hourClock, this.minuteClock);
@@ -867,11 +910,11 @@ var _a = (function (window) {
         TimePicker.prototype.toggleFocus = function (clock, ele) {
             clock.curSelectClockItem = ele;
             if (clock.lastSelectClockItem) {
-                this.setStyle(clock.lastSelectClockItem, ['background', 'color'], ['transparent', clock.lastSelectClockItem.getAttribute('data-now') ? this.themeColor : '#666']);
+                this.setStyle(clock.lastSelectClockItem, ['background', 'color'], ['transparent', clock.lastSelectClockItem.getAttribute('data-now') ? this.color : '#666']);
                 clock.lastSelectClockItem.removeAttribute('data-select');
             }
             if (clock.curSelectClockItem) {
-                this.setStyle(clock.curSelectClockItem, ['background', 'color'], [this.themeColor, '#fff']);
+                this.setStyle(clock.curSelectClockItem, ['background', 'color'], [this.color, '#fff']);
                 clock.curSelectClockItem.setAttribute('data-select', 'true');
                 clock.lastSelectClockItem = clock.curSelectClockItem;
             }
@@ -944,13 +987,6 @@ var _a = (function (window) {
             this.amCon = this.getElement('div', 'am');
             this.pmCon = this.getElement('div', 'pm');
             this.getClockItemList();
-            this.inputList.map(function (ele) {
-                _this.addEvent(ele, 'focus', function (t) {
-                    _this.curInputData = _this.setInputData(t);
-                    _this.show(_this.curInputData.themeColor, _this.curInputData.type, _this.curInputData.format);
-                    t.blur();
-                });
-            });
             this.addEvent(this.wrapper, 'click', function (t) {
                 _this.close();
             });
@@ -984,8 +1020,9 @@ var _a = (function (window) {
             });
             this.clockPointerEvent(this.minuteClock);
         };
-        TimePicker.prototype.show = function (themeColor, type, format) {
-            this.setTheme(themeColor, type, format);
+        TimePicker.prototype.show = function (opt) {
+            this.comfirmFn = opt ? opt['comfirm'] : null;
+            this.setTheme(opt);
             this.getTime();
             this.renderPanel();
             this.setTime();
