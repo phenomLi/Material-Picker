@@ -335,7 +335,7 @@ var _a = (function (window) {
             return this.ZNlist[n];
         };
         DatePicker.prototype.date2weekday = function (year, month, date) {
-            return new Date(year, month, date).getDay();
+            return new Date(year, month - 1, date).getDay();
         };
         DatePicker.prototype.setCurDate = function () {
             this.$dateInstance = new Date();
