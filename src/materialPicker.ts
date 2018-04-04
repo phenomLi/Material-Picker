@@ -673,7 +673,7 @@ class DatePicker extends MaterialPicker {
      * @param date <string> 要算的日期，格式：年-月-日
      */
     private date2weekday(year: number, month: number, date: number): number {
-        return new Date(year, month, date).getDay();
+        return new Date(year, month - 1, date).getDay();
     }
 
 
@@ -847,7 +847,6 @@ class DatePicker extends MaterialPicker {
 
                 if((startDay > i && j === 0) || day >= endDay) {
                     span.setAttribute('data-ele', 'date-item');
-                    
                 }
                 else {
                     day++;
