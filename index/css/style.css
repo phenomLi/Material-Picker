@@ -1,0 +1,288 @@
+/*
+@themeColor: #f06292
+*/
+
+
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    -webkit-overflow-scrolling: touch;
+}
+
+a {
+    text-decoration: none;
+}
+
+
+
+.main {
+    display: flex;
+    overflow: hidden;
+    height: 100vh;
+}
+
+.drawer {
+    width: 54px;
+    height: 100vh;
+    border-right: 1px solid #ddd;
+    transition: width 0.35s cubic-bezier(0.23, 1, 0.32, 1), height 0.35s cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+.drawer--open {
+    width: 250px;
+}
+
+
+@media screen and (max-width: 768px) {
+    .main {
+        display: block;
+        overflow: auto;
+    }
+
+    .drawer {
+        height: 0;
+        width: 100%;
+        overflow: hidden;
+        border: none;
+    }
+
+    .drawer--open {
+        width: 100%;
+        height: 288px;
+    }
+}
+
+div[role="menu"] {
+    display: block !important;
+}
+
+
+.main-content {
+    width: 100%;
+    overflow: auto;
+}
+
+.index-content > .banner {
+    display: flex;
+    align-items: center;
+    flex-direction: column;
+    flex: auto 1 1;
+    background-color: #f06292;
+    padding: 80px;
+}
+
+
+.index-content > .banner > h1 {
+    margin-top: 20px;
+    color: rgba(255, 255, 255, 1);
+    text-align: center;
+    font-weight: 900;
+    font-size: 40px;
+}
+.index-content > .banner > h3 {
+    margin: 40px 0 40px 0;
+    color: rgba(255, 255, 255, 0.8);
+    text-align: center;
+    font-weight: 100;
+}
+
+
+.index-content > .summary {
+    padding: 40px;
+    background-color: #eee;
+    color: #888;
+}
+
+.index-content > .summary > p {
+    max-width: 1000px;
+    margin: 0 auto 0;
+    line-height: 26px;
+    text-indent: 40px;
+    text-align: justify;
+}
+
+.components {
+    padding: 100px 40px 100px 40px;
+}
+
+.components > .components-panel {
+    display: flex;
+    justify-content: space-around;
+    flex-wrap: wrap;
+}
+
+.components > .description {
+    width: 100%;
+    text-align: center;
+    color: #666;
+    margin-bottom: 60px;
+}
+
+.components > .description > p {
+    margin-top: 20px;
+}
+
+.components .card {
+    display: flex;
+    max-width: 400px;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1), 0 5px 15px rgba(0, 0, 0, 0.05);
+    cursor: pointer;
+    transition: all 0.25s ease;
+    margin-bottom: 30px;
+} 
+
+.components .card:hover {
+    transform: translateY(-10px) scale(1.05);
+    box-shadow: 4px 4px 20px rgba(0, 0, 0, 0.2);
+}
+
+.components .card > .card-icon {
+    width: 40%;
+    padding: 16px;
+    background-color: #eee;
+}
+
+.components .card > .card-icon > img {
+    display: block;
+    margin: 0 auto 0;
+    width: 100%;
+}
+
+.components .card > .card-label {
+    padding: 20px;
+}
+
+.components .card > .card-label > h2 {
+    color: #888;
+    font-weight: 100;
+}
+
+.components .card > .card-label p {
+    margin-top: 8px;
+    color: #ccc;
+    font-size: 16px;
+    font-weight: 100;
+}
+
+.footer {
+    display: flex;
+    background-color: rgba(25, 25, 25, 1);
+    padding: 40px;
+    justify-content: center;
+    align-items: center;
+    flex-direction: column;
+}
+
+.footer a {
+    display: flex;
+    align-items: center;
+    color: rgba(255, 255, 255, 0.7);
+    padding: 8px;
+    font-weight: 100;
+    font-size: 14px;
+}
+
+.footer .google {
+    width: 20px;
+    height: 20px;
+    margin-right: 10px;
+}
+
+
+.text-field {
+    display: inline-block;
+    position: relative;
+    margin: 12px 0 12px;
+}
+
+.text-field > span {
+    display: block;
+    position: absolute;
+    left: 0;
+    bottom: 0;
+    width: 100%;
+    height: 2px;
+    background-color: #f06292;
+    transform: scale(0, 1);
+    transition: all 0.2s ease;
+}
+
+.text-field > input {
+    width: 220px;
+    height: 36px;
+    border: none;
+    outline: none;
+    font-size: 18px;
+    border-bottom: 1px solid #ddd;
+    color: #555;
+}
+
+.text-field > input:not([value=""]) + span {
+    transform: scale(1, 1);
+}
+
+.divider {
+    margin: 10px 0 16px;
+    width: 100%;
+    border-bottom: 1px solid #ddd;
+}
+
+
+.content p {
+    padding: 8px 0 8px;
+    line-height: 28px;
+}
+
+.content {
+    padding: 40px;
+    color: #666;
+}
+
+.content h3 {
+    margin-top: 50px;
+    color: #666;
+}
+
+.content h4 {
+    color: #444;
+    font-weight: 900;
+    margin-top: 26px;
+}
+
+.content .text {
+    display: block;
+    color: #666;
+    font-size: 14px;
+    line-height: 20px;
+    margin-bottom: 12px;
+}
+
+.content strong {
+    color: #333;
+    font-weight: 900;
+}
+
+.content .tips {
+    padding: 16px 18px 2px 18px;
+    background: rgba(238, 214, 215, 1);
+    border-left: 4px solid rgba(193, 51, 53, 1);
+    margin-bottom: 12px;
+}
+
+.content .tips .text {
+    color: rgba(151, 49, 51, 1);
+}
+
+.content .tips strong {
+    color: rgba(193, 51, 53, 1);
+}
+
+.content .theme-color-text {
+    padding: 0 0 0 8px;
+    margin: 12px 0 12px 0;
+    font-weight: 900;
+    color: #f06292;
+    border-left: 4px solid #f06292;
+}
