@@ -22,7 +22,7 @@ A simple, elegant, modern form picker, implement Google Material design.
 
 ## Document
 
-- [Material Picker](http://aam0.top/Material-Picker/index/index.html#/)
+- [Material Picker](https://phenomli.github.io/Material-Picker/#/)
 
 - [Google Material Design](https://material.io/)
 
