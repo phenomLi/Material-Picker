@@ -8,7 +8,7 @@
 
 <p align="center">
 A simple, elegant, modern form picker, implement Google Material design.
-<a href="http://aam0.top/Material-Picker/index/index.html#/" target="_blank">HomePage</a>
+<a href="https://phenomli.github.io/Material-Picker/#/" target="_blank">HomePage</a>
 </p>
 
 <p align="center">
